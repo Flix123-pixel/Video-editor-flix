@@ -1,205 +1,563 @@
-const fileInput = document.getElementById("fileInput");
-const video = document.getElementById("video");
-const empty = document.getElementById("empty");
-const clip = document.getElementById("clip");
-
-const playButton = document.getElementById("playButton");
-const seek = document.getElementById("seek");
-const time = document.getElementById("time");
-const duration = document.getElementById("duration");
-const muteButton = document.getElementById("muteButton");
-const volume = document.getElementById("volume");
-
-let videoURL = null;
+/* =========================================
+   FLIX VIDEO EDITOR - SCRIPT.JS
+========================================= */
 
 
 /* =========================
-   IMPORT VIDEO
+   ELEMENTS
 ========================= */
 
-fileInput.addEventListener("change", function () {
+const mediaInput = document.getElementById("mediaInput");
+
+const video = document.getElementById("videoPreview");
+
+const image = document.getElementById("imagePreview");
+
+const emptyPreview =
+    document.getElementById("emptyPreview");
+
+const playBtn =
+    document.getElementById("playBtn");
+
+const seekBar =
+    document.getElementById("seekBar");
+
+const currentTime =
+    document.getElementById("currentTime");
+
+const totalTime =
+    document.getElementById("totalTime");
+
+const muteBtn =
+    document.getElementById("muteBtn");
+
+const volume =
+    document.getElementById("volume");
+
+const timelineClip =
+    document.getElementById("timelineClip");
+
+const newBtn =
+    document.getElementById("newBtn");
+
+const textInput =
+    document.getElementById("textInput");
+
+const textSize =
+    document.getElementById("textSize");
+
+const textOverlay =
+    document.getElementById("textOverlay");
+
+const brightness =
+    document.getElementById("brightness");
+
+const contrast =
+    document.getElementById("contrast");
+
+const saturation =
+    document.getElementById("saturation");
+
+const blur =
+    document.getElementById("blur");
+
+const aspectRatio =
+    document.getElementById("aspectRatio");
+
+
+let mediaURL = null;
+
+
+/* =========================
+   INITIAL STATE
+========================= */
+
+video.style.display = "none";
+image.style.display = "none";
+textOverlay.style.display = "none";
+
+
+/* =========================
+   IMPORT MEDIA
+========================= */
+
+mediaInput.addEventListener("change", function () {
 
     const file = this.files[0];
 
     if (!file) return;
 
-    console.log("Selected:", file.name);
+    console.log("Imported:", file.name);
     console.log("Type:", file.type);
 
-    if (!file.type.startsWith("video/")) {
-        alert("Please ek video file select karo.");
-        return;
+    /* Old URL remove */
+
+    if (mediaURL) {
+
+        URL.revokeObjectURL(mediaURL);
+
+        mediaURL = null;
+
     }
 
-    /* Purana URL remove */
-    if (videoURL) {
-        URL.revokeObjectURL(videoURL);
+
+    /* Create new URL */
+
+    mediaURL =
+        URL.createObjectURL(file);
+
+
+    /* =========================
+       VIDEO
+    ========================= */
+
+    if (file.type.startsWith("video/")) {
+
+        image.style.display = "none";
+
+        video.style.display = "block";
+
+        emptyPreview.style.display = "none";
+
+        video.pause();
+
+        video.src = mediaURL;
+
+        video.load();
+
+        timelineClip.textContent =
+            "🎬 " + file.name;
+
+        seekBar.value = 0;
+
+        currentTime.textContent =
+            "00:00";
+
+        totalTime.textContent =
+            "00:00";
+
+        console.log("Video preview loaded.");
+
     }
 
-    /* Naya video URL */
-    videoURL = URL.createObjectURL(file);
 
-    /* Video set */
-    video.src = videoURL;
+    /* =========================
+       IMAGE
+    ========================= */
 
-    /* Preview show */
-    video.style.display = "block";
-    empty.style.display = "none";
+    else if (file.type.startsWith("image/")) {
 
-    /* Timeline */
-    clip.textContent = "🎬 " + file.name;
+        video.pause();
 
-    /* Video load */
-    video.load();
+        video.removeAttribute("src");
+
+        video.style.display = "none";
+
+        image.src = mediaURL;
+
+        image.style.display = "block";
+
+        emptyPreview.style.display = "none";
+
+        timelineClip.textContent =
+            "🖼️ " + file.name;
+
+        console.log("Image preview loaded.");
+
+    }
+
+
+    /* =========================
+       AUDIO
+    ========================= */
+
+    else if (file.type.startsWith("audio/")) {
+
+        alert(
+            "Audio import ho gaya. Audio preview feature next step mein add karenge."
+        );
+
+        timelineClip.textContent =
+            "🎵 " + file.name;
+
+    }
+
+
+    else {
+
+        alert(
+            "Ye file supported nahi hai."
+        );
+
+    }
 
 });
 
 
 /* =========================
-   VIDEO LOADED
+   VIDEO METADATA
 ========================= */
 
-video.addEventListener("loadedmetadata", function () {
+video.addEventListener(
+    "loadedmetadata",
+    function () {
 
-    console.log("Video loaded:", video.duration);
+        if (!isFinite(video.duration)) {
+            return;
+        }
 
-    duration.textContent =
-        formatTime(video.duration);
+        totalTime.textContent =
+            formatTime(video.duration);
 
-    time.textContent =
-        "00:00 / " +
-        formatTime(video.duration);
+        currentTime.textContent =
+            "00:00";
 
-    seek.value = 0;
+        seekBar.value = 0;
 
-});
+        console.log(
+            "Duration:",
+            video.duration
+        );
+
+    }
+);
 
 
 /* =========================
-   VIDEO ERROR
+   VIDEO TIME UPDATE
 ========================= */
 
-video.addEventListener("error", function () {
+video.addEventListener(
+    "timeupdate",
+    function () {
 
-    console.log("Video error:", video.error);
+        if (!video.duration) {
+            return;
+        }
 
-    alert(
-        "Ye video format browser mein play nahi ho raha. MP4 (H.264) video try karo."
-    );
+        const percent =
+            (video.currentTime /
+            video.duration) * 100;
 
-});
+        seekBar.value = percent;
 
+        currentTime.textContent =
+            formatTime(
+                video.currentTime
+            );
 
-/* =========================
-   TIME UPDATE
-========================= */
-
-video.addEventListener("timeupdate", function () {
-
-    if (!video.duration) return;
-
-    seek.value =
-        (video.currentTime / video.duration) * 100;
-
-    time.textContent =
-        formatTime(video.currentTime) +
-        " / " +
-        formatTime(video.duration);
-
-});
+    }
+);
 
 
 /* =========================
    PLAY / PAUSE
 ========================= */
 
-playButton.addEventListener("click", function () {
+playBtn.addEventListener(
+    "click",
+    function () {
 
-    if (!video.src) {
+        if (!video.src) {
 
-        alert("Pehle video import karo.");
+            alert(
+                "Pehle video import karo."
+            );
 
-        return;
+            return;
+
+        }
+
+
+        if (video.paused) {
+
+            video.play()
+                .catch(function (error) {
+
+                    console.log(
+                        "Play error:",
+                        error
+                    );
+
+                });
+
+        } else {
+
+            video.pause();
+
+        }
+
     }
+);
 
-    if (video.paused) {
 
-        video.play();
+/* =========================
+   PLAY BUTTON ICON
+========================= */
 
-        playButton.textContent = "⏸";
+video.addEventListener(
+    "play",
+    function () {
 
-    } else {
-
-        video.pause();
-
-        playButton.textContent = "▶";
+        playBtn.textContent = "⏸";
 
     }
-
-});
-
-
-video.addEventListener("play", function () {
-
-    playButton.textContent = "⏸";
-
-});
+);
 
 
-video.addEventListener("pause", function () {
+video.addEventListener(
+    "pause",
+    function () {
 
-    playButton.textContent = "▶";
+        playBtn.textContent = "▶";
 
-});
+    }
+);
 
 
 /* =========================
    SEEK
 ========================= */
 
-seek.addEventListener("input", function () {
+seekBar.addEventListener(
+    "input",
+    function () {
 
-    if (!video.duration) return;
+        if (!video.duration) {
+            return;
+        }
 
-    video.currentTime =
-        (Number(this.value) / 100) *
-        video.duration;
+        video.currentTime =
+            (Number(this.value) / 100) *
+            video.duration;
 
-});
+    }
+);
 
 
 /* =========================
    MUTE
 ========================= */
 
-muteButton.addEventListener("click", function () {
+muteBtn.addEventListener(
+    "click",
+    function () {
 
-    video.muted = !video.muted;
+        video.muted =
+            !video.muted;
 
-    muteButton.textContent =
-        video.muted ? "🔇" : "🔊";
+        muteBtn.textContent =
+            video.muted
+            ? "🔇"
+            : "🔊";
 
-});
+    }
+);
 
 
 /* =========================
    VOLUME
 ========================= */
 
-volume.addEventListener("input", function () {
+volume.addEventListener(
+    "input",
+    function () {
 
-    video.volume =
-        Number(this.value) / 100;
+        video.volume =
+            Number(this.value) / 100;
 
-    if (video.volume > 0) {
+        if (video.volume > 0) {
 
-        video.muted = false;
+            video.muted = false;
 
-        muteButton.textContent = "🔊";
+            muteBtn.textContent =
+                "🔊";
+
+        }
 
     }
+);
 
-});
+
+/* =========================
+   TEXT
+========================= */
+
+textInput.addEventListener(
+    "input",
+    function () {
+
+        textOverlay.textContent =
+            this.value;
+
+        if (this.value.trim() !== "") {
+
+            textOverlay.style.display =
+                "block";
+
+        } else {
+
+            textOverlay.style.display =
+                "none";
+
+        }
+
+    }
+);
+
+
+/* =========================
+   TEXT SIZE
+========================= */
+
+textSize.addEventListener(
+    "input",
+    function () {
+
+        textOverlay.style.fontSize =
+            this.value + "px";
+
+    }
+);
+
+
+/* =========================
+   FILTERS
+========================= */
+
+function applyFilters() {
+
+    video.style.filter =
+        "brightness(" +
+        brightness.value +
+        "%) " +
+
+        "contrast(" +
+        contrast.value +
+        "%) " +
+
+        "saturate(" +
+        saturation.value +
+        "%) " +
+
+        "blur(" +
+        blur.value +
+        "px)";
+
+}
+
+
+brightness.addEventListener(
+    "input",
+    applyFilters
+);
+
+contrast.addEventListener(
+    "input",
+    applyFilters
+);
+
+saturation.addEventListener(
+    "input",
+    applyFilters
+);
+
+blur.addEventListener(
+    "input",
+    applyFilters
+);
+
+
+/* =========================
+   ASPECT RATIO
+========================= */
+
+aspectRatio.addEventListener(
+    "change",
+    function () {
+
+        if (this.value === "auto") {
+
+            video.style.aspectRatio =
+                "auto";
+
+        } else {
+
+            video.style.aspectRatio =
+                this.value;
+
+        }
+
+    }
+);
+
+
+/* =========================
+   NEW PROJECT
+========================= */
+
+newBtn.addEventListener(
+    "click",
+    function () {
+
+        video.pause();
+
+        video.removeAttribute("src");
+
+        video.load();
+
+        image.removeAttribute("src");
+
+        video.style.display = "none";
+
+        image.style.display = "none";
+
+        emptyPreview.style.display =
+            "block";
+
+        timelineClip.textContent =
+            "No media imported";
+
+        currentTime.textContent =
+            "00:00";
+
+        totalTime.textContent =
+            "00:00";
+
+        seekBar.value = 0;
+
+        mediaInput.value = "";
+
+        textInput.value = "";
+
+        textOverlay.textContent = "";
+
+        textOverlay.style.display =
+            "none";
+
+    }
+);
+
+
+/* =========================
+   VIDEO ERROR
+========================= */
+
+video.addEventListener(
+    "error",
+    function () {
+
+        console.log(
+            "VIDEO ERROR:",
+            video.error
+        );
+
+        alert(
+            "Video browser mein play nahi ho raha. Ek normal MP4 video try karo."
+        );
+
+    }
+);
 
 
 /* =========================
@@ -208,65 +566,46 @@ volume.addEventListener("input", function () {
 
 function formatTime(seconds) {
 
-    if (!isFinite(seconds)) {
+    if (
+        !isFinite(seconds) ||
+        seconds < 0
+    ) {
+
         return "00:00";
+
     }
 
     const minutes =
         Math.floor(seconds / 60);
 
-    const secondsLeft =
+    const secs =
         Math.floor(seconds % 60);
 
-    return String(minutes).padStart(2, "0") +
+    return (
+        String(minutes).padStart(2, "0")
+        +
         ":" +
-        String(secondsLeft).padStart(2, "0");
+        String(secs).padStart(2, "0")
+    );
 
 }
 
 
 /* =========================
-   NEW PROJECT
+   CLEANUP
 ========================= */
 
-document
-    .getElementById("newButton")
-    .addEventListener("click", function () {
+window.addEventListener(
+    "beforeunload",
+    function () {
 
-        video.pause();
+        if (mediaURL) {
 
-        video.removeAttribute("src");
+            URL.revokeObjectURL(
+                mediaURL
+            );
 
-        video.load();
+        }
 
-        video.style.display = "none";
-
-        empty.style.display = "block";
-
-        clip.textContent =
-            "🎬 No video imported";
-
-        seek.value = 0;
-
-        time.textContent =
-            "00:00 / 00:00";
-
-        duration.textContent =
-            "00:00";
-
-        fileInput.value = "";
-
-    });
-
-
-/* =========================
-   CLEAN URL
-========================= */
-
-window.addEventListener("beforeunload", function () {
-
-    if (videoURL) {
-        URL.revokeObjectURL(videoURL);
     }
-
-});
+);
