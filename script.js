@@ -1,85 +1,272 @@
-const mediaInput = document.getElementById("mediaInput");
-const videoPreview = document.getElementById("videoPreview");
-const photoPreview = document.getElementById("photoPreview");
-const emptyPreview = document.getElementById("emptyPreview");
-const mediaClip = document.getElementById("mediaClip");
+const fileInput = document.getElementById("fileInput");
+const video = document.getElementById("video");
+const empty = document.getElementById("empty");
+const clip = document.getElementById("clip");
 
-mediaInput.addEventListener("change", function () {
+const playButton = document.getElementById("playButton");
+const seek = document.getElementById("seek");
+const time = document.getElementById("time");
+const duration = document.getElementById("duration");
+const muteButton = document.getElementById("muteButton");
+const volume = document.getElementById("volume");
 
-const file = this.files[0];
+let videoURL = null;
 
-if (!file) {
-    return;
-}
 
-console.log("Selected file:", file.name);
-console.log("File type:", file.type);
+/* =========================
+   IMPORT VIDEO
+========================= */
 
-const url = URL.createObjectURL(file);
+fileInput.addEventListener("change", function () {
 
-/* VIDEO */
+    const file = this.files[0];
 
-if (file.type.startsWith("video/")) {
+    if (!file) return;
 
-    photoPreview.style.display = "none";
+    console.log("Selected:", file.name);
+    console.log("Type:", file.type);
 
-    videoPreview.style.display = "block";
+    if (!file.type.startsWith("video/")) {
+        alert("Please ek video file select karo.");
+        return;
+    }
 
-    emptyPreview.style.display = "none";
+    /* Purana URL remove */
+    if (videoURL) {
+        URL.revokeObjectURL(videoURL);
+    }
 
-    videoPreview.src = url;
+    /* Naya video URL */
+    videoURL = URL.createObjectURL(file);
 
-    videoPreview.controls = true;
+    /* Video set */
+    video.src = videoURL;
 
-    videoPreview.load();
+    /* Preview show */
+    video.style.display = "block";
+    empty.style.display = "none";
 
-    mediaClip.textContent =
-        "🎬 " + file.name;
+    /* Timeline */
+    clip.textContent = "🎬 " + file.name;
 
-    console.log("Video loaded:", url);
-}
-
-/* PHOTO */
-
-else if (file.type.startsWith("image/")) {
-
-    videoPreview.style.display = "none";
-
-    photoPreview.style.display = "block";
-
-    emptyPreview.style.display = "none";
-
-    photoPreview.src = url;
-
-    mediaClip.textContent =
-        "🖼️ " + file.name;
-
-    console.log("Photo loaded:", url);
-}
-
-else {
-
-    alert("Ye video/photo file nahi hai.");
-
-}
+    /* Video load */
+    video.load();
 
 });
 
-videoPreview.addEventListener("loadeddata", function () {
 
-console.log("VIDEO PREVIEW READY");
+/* =========================
+   VIDEO LOADED
+========================= */
+
+video.addEventListener("loadedmetadata", function () {
+
+    console.log("Video loaded:", video.duration);
+
+    duration.textContent =
+        formatTime(video.duration);
+
+    time.textContent =
+        "00:00 / " +
+        formatTime(video.duration);
+
+    seek.value = 0;
 
 });
 
-videoPreview.addEventListener("error", function () {
 
-console.log(
-    "VIDEO ERROR:",
-    videoPreview.error
-);
+/* =========================
+   VIDEO ERROR
+========================= */
 
-alert(
-    "Video browser mein load nahi ho pa raha."
-);
+video.addEventListener("error", function () {
+
+    console.log("Video error:", video.error);
+
+    alert(
+        "Ye video format browser mein play nahi ho raha. MP4 (H.264) video try karo."
+    );
+
+});
+
+
+/* =========================
+   TIME UPDATE
+========================= */
+
+video.addEventListener("timeupdate", function () {
+
+    if (!video.duration) return;
+
+    seek.value =
+        (video.currentTime / video.duration) * 100;
+
+    time.textContent =
+        formatTime(video.currentTime) +
+        " / " +
+        formatTime(video.duration);
+
+});
+
+
+/* =========================
+   PLAY / PAUSE
+========================= */
+
+playButton.addEventListener("click", function () {
+
+    if (!video.src) {
+
+        alert("Pehle video import karo.");
+
+        return;
+    }
+
+    if (video.paused) {
+
+        video.play();
+
+        playButton.textContent = "⏸";
+
+    } else {
+
+        video.pause();
+
+        playButton.textContent = "▶";
+
+    }
+
+});
+
+
+video.addEventListener("play", function () {
+
+    playButton.textContent = "⏸";
+
+});
+
+
+video.addEventListener("pause", function () {
+
+    playButton.textContent = "▶";
+
+});
+
+
+/* =========================
+   SEEK
+========================= */
+
+seek.addEventListener("input", function () {
+
+    if (!video.duration) return;
+
+    video.currentTime =
+        (Number(this.value) / 100) *
+        video.duration;
+
+});
+
+
+/* =========================
+   MUTE
+========================= */
+
+muteButton.addEventListener("click", function () {
+
+    video.muted = !video.muted;
+
+    muteButton.textContent =
+        video.muted ? "🔇" : "🔊";
+
+});
+
+
+/* =========================
+   VOLUME
+========================= */
+
+volume.addEventListener("input", function () {
+
+    video.volume =
+        Number(this.value) / 100;
+
+    if (video.volume > 0) {
+
+        video.muted = false;
+
+        muteButton.textContent = "🔊";
+
+    }
+
+});
+
+
+/* =========================
+   TIME FORMAT
+========================= */
+
+function formatTime(seconds) {
+
+    if (!isFinite(seconds)) {
+        return "00:00";
+    }
+
+    const minutes =
+        Math.floor(seconds / 60);
+
+    const secondsLeft =
+        Math.floor(seconds % 60);
+
+    return String(minutes).padStart(2, "0") +
+        ":" +
+        String(secondsLeft).padStart(2, "0");
+
+}
+
+
+/* =========================
+   NEW PROJECT
+========================= */
+
+document
+    .getElementById("newButton")
+    .addEventListener("click", function () {
+
+        video.pause();
+
+        video.removeAttribute("src");
+
+        video.load();
+
+        video.style.display = "none";
+
+        empty.style.display = "block";
+
+        clip.textContent =
+            "🎬 No video imported";
+
+        seek.value = 0;
+
+        time.textContent =
+            "00:00 / 00:00";
+
+        duration.textContent =
+            "00:00";
+
+        fileInput.value = "";
+
+    });
+
+
+/* =========================
+   CLEAN URL
+========================= */
+
+window.addEventListener("beforeunload", function () {
+
+    if (videoURL) {
+        URL.revokeObjectURL(videoURL);
+    }
 
 });
