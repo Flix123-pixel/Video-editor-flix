@@ -1,4 +1,4 @@
-*{
+p*{
     box-sizing:border-box;
     margin:0;
     padding:0;
@@ -576,4 +576,42 @@ input[type="range"]{
         padding:5px;
         font-size:9px;
     }
+}
+/* ================================
+FLIX MEDIA PREVIEW FIX
+================================ */
+
+#videoPreview,
+#photoPreview {
+display: none;
+max-width: 90%;
+max-height: 85%;
+width: auto;
+height: auto;
+object-fit: contain;
+background: #000;
+border-radius: 8px;
+}
+
+#videoPreview {
+position: relative;
+z-index: 2;
+}
+
+#photoPreview {
+position: relative;
+z-index: 2;
+}
+
+.preview {
+position: relative;
+display: flex;
+align-items: center;
+justify-content: center;
+overflow: hidden;
+background: #050609;
+}
+
+.empty-preview {
+z-index: 1;
 }
