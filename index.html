@@ -7,381 +7,374 @@
 <title>Flix Video Editor</title>
 
 <link rel="stylesheet" href="style.css">
-
 </head>
 
 <body>
 
 <div id="app">
 
-    <!-- TOP BAR -->
-    <header class="topbar">
+<header class="topbar">
 
-        <div class="logo">
-            FLIX <span>VIDEO EDITOR</span>
+    <div class="logo">
+        FLIX <span>VIDEO EDITOR</span>
+    </div>
+
+    <div class="top-actions">
+
+        <label class="import-btn" for="mediaInput">
+            📂 Import
+        </label>
+
+        <input
+            id="mediaInput"
+            type="file"
+            accept="video/*,image/*,audio/*"
+            hidden
+        >
+
+        <button id="newBtn">＋ New</button>
+
+        <button id="exportBtn" class="export-btn">
+            ⬇ Export
+        </button>
+
+    </div>
+
+</header>
+
+
+<main class="editor">
+
+<aside class="sidebar">
+
+    <button class="tool active" data-tool="media">
+        🎬
+        <span>Media</span>
+    </button>
+
+    <button class="tool" data-tool="text">
+        🔤
+        <span>Text</span>
+    </button>
+
+    <button class="tool" data-tool="filters">
+        🎨
+        <span>Filters</span>
+    </button>
+
+    <button class="tool" data-tool="audio">
+        🎵
+        <span>Audio</span>
+    </button>
+
+    <button class="tool" data-tool="stickers">
+        ⭐
+        <span>Stickers</span>
+    </button>
+
+    <button class="tool" data-tool="transition">
+        🎞️
+        <span>Transition</span>
+    </button>
+
+    <button class="tool" data-tool="speed">
+        ⚡
+        <span>Speed</span>
+    </button>
+
+    <button class="tool" data-tool="crop">
+        ✂️
+        <span>Crop</span>
+    </button>
+
+    <button class="tool" data-tool="ai">
+        ✨
+        <span>AI Tools</span>
+    </button>
+
+    <button class="tool" data-tool="thumbnail">
+        🖼️
+        <span>Thumbnail</span>
+    </button>
+
+</aside>
+
+
+<section class="workspace">
+
+    <div class="preview" id="previewArea">
+
+        <div id="emptyPreview">
+
+            <div class="empty-icon">🎬</div>
+
+            <h2>Flix Video Editor</h2>
+
+            <p>Import a video or image to start editing</p>
+
         </div>
 
-        <div class="top-actions">
+        <video
+            id="videoPreview"
+            playsinline
+            preload="metadata">
+        </video>
 
-            <label class="import-btn" for="mediaInput">
-                📂 Import
-            </label>
+        <img
+            id="imagePreview"
+            alt="Imported image">
 
-            <input
-                id="mediaInput"
-                type="file"
-                accept="video/*,image/*,audio/*"
-                hidden
-            >
+        <div id="textOverlay" class="text-overlay"></div>
 
-            <button id="newBtn">
-                ＋ New
-            </button>
+        <div id="stickerOverlay" class="sticker-overlay"></div>
 
-            <button id="exportBtn" class="export-btn">
-                ⬇ Export
-            </button>
+    </div>
+
+
+    <div class="player">
+
+        <button id="playBtn">▶</button>
+
+        <span id="currentTime">00:00</span>
+
+        <input
+            id="seekBar"
+            type="range"
+            min="0"
+            max="100"
+            value="0">
+
+        <span id="totalTime">00:00</span>
+
+        <button id="muteBtn">🔊</button>
+
+        <input
+            id="volume"
+            type="range"
+            min="0"
+            max="100"
+            value="100">
+
+    </div>
+
+
+    <div class="timeline">
+
+        <div class="timeline-top">
+
+            <strong>Timeline</strong>
+
+            <div>
+
+                <button id="undoBtn">↶</button>
+
+                <button id="redoBtn">↷</button>
+
+                <button id="deleteBtn">🗑 Delete</button>
+
+            </div>
 
         </div>
 
-    </header>
+
+        <div class="timeline-ruler">
+
+            <span>00:00</span>
+            <span>00:05</span>
+            <span>00:10</span>
+            <span>00:15</span>
+            <span>00:20</span>
+
+        </div>
 
 
-    <!-- MAIN EDITOR -->
-    <main class="editor">
+        <div class="track">
 
-        <!-- LEFT TOOLS -->
-        <aside class="sidebar">
-
-            <button class="tool active" data-tool="media">
-                🎬
-                <span>Media</span>
-            </button>
-
-            <button class="tool" data-tool="text">
-                🔤
-                <span>Text</span>
-            </button>
-
-            <button class="tool" data-tool="filters">
-                🎨
-                <span>Filters</span>
-            </button>
-
-            <button class="tool" data-tool="audio">
-                🎵
-                <span>Audio</span>
-            </button>
-
-            <button class="tool" data-tool="stickers">
-                ⭐
-                <span>Stickers</span>
-            </button>
-
-            <button class="tool" data-tool="transition">
-                🎞️
-                <span>Transition</span>
-            </button>
-
-            <button class="tool" data-tool="speed">
-                ⚡
-                <span>Speed</span>
-            </button>
-
-            <button class="tool" data-tool="crop">
-                ✂️
-                <span>Crop</span>
-            </button>
-
-            <button class="tool" data-tool="ai">
-                ✨
-                <span>AI Tools</span>
-            </button>
-
-            <button class="tool" data-tool="thumbnail">
-                🖼️
-                <span>Thumbnail</span>
-            </button>
-
-        </aside>
-
-
-        <!-- CENTER -->
-        <section class="workspace">
-
-            <!-- PREVIEW -->
-            <div class="preview">
-
-                <div id="emptyPreview">
-
-                    <div class="empty-icon">
-                        🎬
-                    </div>
-
-                    <h2>Flix Video Editor</h2>
-
-                    <p>
-                        Import a video or image to start editing
-                    </p>
-
-                </div>
-
-                <video
-                    id="videoPreview"
-                    playsinline
-                    preload="metadata">
-                </video>
-
-                <img
-                    id="imagePreview"
-                    alt="Imported image">
-
-                <div
-                    id="textOverlay"
-                    class="text-overlay">
-                </div>
-
+            <div id="timelineClip" class="timeline-clip">
+                No media imported
             </div>
 
+        </div>
 
-            <!-- PLAYER CONTROLS -->
-            <div class="player">
+    </div>
 
-                <button id="playBtn">
-                    ▶
-                </button>
+</section>
 
-                <span id="currentTime">
-                    00:00
-                </span>
 
-                <input
-                    id="seekBar"
-                    type="range"
-                    min="0"
-                    max="100"
-                    value="0">
+<aside class="properties">
 
-                <span id="totalTime">
-                    00:00
-                </span>
+    <h2>Properties</h2>
 
-                <button id="muteBtn">
-                    🔊
-                </button>
 
-                <input
-                    id="volume"
-                    type="range"
-                    min="0"
-                    max="100"
-                    value="100">
+    <div class="property">
 
+        <label>Text</label>
+
+        <input
+            id="textInput"
+            type="text"
+            placeholder="Type your text">
+
+    </div>
+
+
+    <div class="property">
+
+        <label>Text Size</label>
+
+        <input
+            id="textSize"
+            type="range"
+            min="10"
+            max="100"
+            value="40">
+
+    </div>
+
+
+    <div class="property">
+
+        <label>Brightness</label>
+
+        <input
+            id="brightness"
+            type="range"
+            min="50"
+            max="150"
+            value="100">
+
+    </div>
+
+
+    <div class="property">
+
+        <label>Contrast</label>
+
+        <input
+            id="contrast"
+            type="range"
+            min="50"
+            max="150"
+            value="100">
+
+    </div>
+
+
+    <div class="property">
+
+        <label>Saturation</label>
+
+        <input
+            id="saturation"
+            type="range"
+            min="0"
+            max="200"
+            value="100">
+
+    </div>
+
+
+    <div class="property">
+
+        <label>Blur</label>
+
+        <input
+            id="blur"
+            type="range"
+            min="0"
+            max="10"
+            value="0">
+
+    </div>
+
+
+    <div class="property">
+
+        <label>Speed</label>
+
+        <select id="speedSelect">
+
+            <option value="0.25">0.25x</option>
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1x Normal</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+
+        </select>
+
+    </div>
+
+
+    <div class="property">
+
+        <label>Aspect Ratio</label>
+
+        <select id="aspectRatio">
+
+            <option value="auto">Original</option>
+            <option value="16/9">16 : 9</option>
+            <option value="9/16">9 : 16</option>
+            <option value="1/1">1 : 1</option>
+            <option value="21/9">21 : 9</option>
+
+        </select>
+
+    </div>
+
+
+    <div class="property">
+
+        <label>Sticker</label>
+
+        <select id="stickerSelect">
+
+            <option value="">No Sticker</option>
+            <option value="⭐">⭐ Star</option>
+            <option value="🔥">🔥 Fire</option>
+            <option value="❤️">❤️ Heart</option>
+            <option value="😂">😂 Laugh</option>
+            <option value="😎">😎 Cool</option>
+            <option value="💥">💥 Boom</option>
+
+        </select>
+
+    </div>
+
+</aside>
+
+</main>
+
+
+<!-- EXPORT MODAL -->
+
+<div id="exportModal" class="export-modal">
+
+    <div class="export-box">
+
+        <h2>Exporting Video</h2>
+
+        <p id="exportStatus">
+            Preparing export...
+        </p>
+
+        <div class="progress-track">
+
+            <div
+                id="exportProgress"
+                class="progress-bar">
             </div>
 
+        </div>
 
-            <!-- TIMELINE -->
-            <div class="timeline">
+        <strong id="exportPercent">0%</strong>
 
-                <div class="timeline-top">
+        <button id="cancelExportBtn">
+            Cancel
+        </button>
 
-                    <strong>
-                        Timeline
-                    </strong>
-
-                    <div>
-
-                        <button id="undoBtn">
-                            ↶
-                        </button>
-
-                        <button id="redoBtn">
-                            ↷
-                        </button>
-
-                        <button id="splitBtn">
-                            ✂ Split
-                        </button>
-
-                        <button id="deleteBtn">
-                            🗑 Delete
-                        </button>
-
-                    </div>
-
-                </div>
-
-
-                <div class="timeline-ruler">
-
-                    <span>00:00</span>
-                    <span>00:05</span>
-                    <span>00:10</span>
-                    <span>00:15</span>
-                    <span>00:20</span>
-
-                </div>
-
-
-                <div class="track">
-
-                    <div
-                        id="timelineClip"
-                        class="timeline-clip">
-                        No media imported
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- RIGHT PROPERTIES -->
-        <aside class="properties">
-
-            <h2>
-                Properties
-            </h2>
-
-
-            <!-- TEXT -->
-            <div class="property">
-
-                <label>
-                    Text
-                </label>
-
-                <input
-                    id="textInput"
-                    type="text"
-                    placeholder="Type your text">
-
-            </div>
-
-
-            <!-- FONT SIZE -->
-            <div class="property">
-
-                <label>
-                    Text Size
-                </label>
-
-                <input
-                    id="textSize"
-                    type="range"
-                    min="10"
-                    max="100"
-                    value="40">
-
-            </div>
-
-
-            <!-- BRIGHTNESS -->
-            <div class="property">
-
-                <label>
-                    Brightness
-                </label>
-
-                <input
-                    id="brightness"
-                    type="range"
-                    min="50"
-                    max="150"
-                    value="100">
-
-            </div>
-
-
-            <!-- CONTRAST -->
-            <div class="property">
-
-                <label>
-                    Contrast
-                </label>
-
-                <input
-                    id="contrast"
-                    type="range"
-                    min="50"
-                    max="150"
-                    value="100">
-
-            </div>
-
-
-            <!-- SATURATION -->
-            <div class="property">
-
-                <label>
-                    Saturation
-                </label>
-
-                <input
-                    id="saturation"
-                    type="range"
-                    min="0"
-                    max="200"
-                    value="100">
-
-            </div>
-
-
-            <!-- BLUR -->
-            <div class="property">
-
-                <label>
-                    Blur
-                </label>
-
-                <input
-                    id="blur"
-                    type="range"
-                    min="0"
-                    max="10"
-                    value="0">
-
-            </div>
-
-
-            <!-- ASPECT RATIO -->
-            <div class="property">
-
-                <label>
-                    Aspect Ratio
-                </label>
-
-                <select id="aspectRatio">
-
-                    <option value="auto">
-                        Original
-                    </option>
-
-                    <option value="16/9">
-                        16 : 9
-                    </option>
-
-                    <option value="9/16">
-                        9 : 16
-                    </option>
-
-                    <option value="1/1">
-                        1 : 1
-                    </option>
-
-                    <option value="21/9">
-                        21 : 9
-                    </option>
-
-                </select>
-
-            </div>
-
-        </aside>
-
-    </main>
+    </div>
 
 </div>
 
@@ -389,4 +382,4 @@
 <script src="script.js"></script>
 
 </body>
-              </html>
+    </html>
