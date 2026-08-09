@@ -1,11 +1,11 @@
 /* =====================================================
-   FLIX VIDEO EDITOR - COMPLETE SCRIPT
+   FLIX VIDEO EDITOR - WORKING SCRIPT
 ===================================================== */
 
 const mediaInput = document.getElementById("mediaInput");
 
-const video = document.getElementById("videoPreview");
-const image = document.getElementById("imagePreview");
+const videoPreview = document.getElementById("videoPreview");
+const imagePreview = document.getElementById("imagePreview");
 const emptyPreview = document.getElementById("emptyPreview");
 
 const playBtn = document.getElementById("playBtn");
@@ -19,11 +19,20 @@ const volume = document.getElementById("volume");
 const timelineClip =
     document.getElementById("timelineClip");
 
+const newBtn =
+    document.getElementById("newBtn");
+
+const exportBtn =
+    document.getElementById("exportBtn");
+
 const textInput =
     document.getElementById("textInput");
 
 const textSize =
     document.getElementById("textSize");
+
+const textOverlay =
+    document.getElementById("textOverlay");
 
 const brightness =
     document.getElementById("brightness");
@@ -40,15 +49,6 @@ const blur =
 const aspectRatio =
     document.getElementById("aspectRatio");
 
-const textOverlay =
-    document.getElementById("textOverlay");
-
-const newBtn =
-    document.getElementById("newBtn");
-
-const exportBtn =
-    document.getElementById("exportBtn");
-
 const splitBtn =
     document.getElementById("splitBtn");
 
@@ -63,14 +63,14 @@ const redoBtn =
 
 
 let mediaURL = null;
-let currentFile = null;
+let currentType = null;
 
 let history = [];
-let future = [];
+let historyIndex = -1;
 
 
 /* =====================================================
-   TIME FORMAT
+   HELPERS
 ===================================================== */
 
 function formatTime(seconds) {
@@ -79,17 +79,44 @@ function formatTime(seconds) {
         return "00:00";
     }
 
-    const min =
+    const minutes =
         Math.floor(seconds / 60);
 
-    const sec =
+    const secs =
         Math.floor(seconds % 60);
 
     return (
-        String(min).padStart(2, "0") +
+        String(minutes).padStart(2, "0") +
         ":" +
-        String(sec).padStart(2, "0")
+        String(secs).padStart(2, "0")
     );
+}
+
+
+function showVideo() {
+
+    videoPreview.style.display = "block";
+    imagePreview.style.display = "none";
+    emptyPreview.style.display = "none";
+
+}
+
+
+function showImage() {
+
+    videoPreview.style.display = "none";
+    imagePreview.style.display = "block";
+    emptyPreview.style.display = "none";
+
+}
+
+
+function showEmpty() {
+
+    videoPreview.style.display = "none";
+    imagePreview.style.display = "none";
+    emptyPreview.style.display = "block";
+
 }
 
 
@@ -103,10 +130,7 @@ mediaInput.addEventListener("change", function () {
 
     if (!file) return;
 
-    currentFile = file;
-
     console.log("Imported:", file.name);
-    console.log("Type:", file.type);
 
     if (mediaURL) {
         URL.revokeObjectURL(mediaURL);
@@ -115,250 +139,287 @@ mediaInput.addEventListener("change", function () {
     mediaURL =
         URL.createObjectURL(file);
 
+    currentType = file.type;
 
-    /* ---------- VIDEO ---------- */
+    /* VIDEO */
 
     if (file.type.startsWith("video/")) {
 
-        image.style.display = "none";
+        videoPreview.pause();
 
-        video.pause();
+        videoPreview.src = mediaURL;
 
-        video.src = mediaURL;
+        videoPreview.load();
 
-        video.style.display = "block";
-
-        emptyPreview.style.display = "none";
-
-        video.load();
+        showVideo();
 
         timelineClip.textContent =
             "🎬 " + file.name;
 
-        saveState();
+        videoPreview.currentTime = 0;
+
+        saveHistory();
 
         return;
     }
 
 
-    /* ---------- IMAGE ---------- */
+    /* IMAGE */
 
     if (file.type.startsWith("image/")) {
 
-        video.pause();
+        imagePreview.src = mediaURL;
 
-        video.removeAttribute("src");
-
-        video.style.display = "none";
-
-        image.src = mediaURL;
-
-        image.style.display = "block";
-
-        emptyPreview.style.display = "none";
+        showImage();
 
         timelineClip.textContent =
             "🖼 " + file.name;
 
-        currentTime.textContent =
-            "00:00";
-
-        totalTime.textContent =
-            "00:00";
-
-        saveState();
+        saveHistory();
 
         return;
     }
 
 
-    /* ---------- AUDIO ---------- */
+    /* AUDIO */
 
     if (file.type.startsWith("audio/")) {
 
-        alert(
-            "Audio import ho gaya. Audio preview ke liye browser audio player use karega."
-        );
+        videoPreview.src = mediaURL;
+
+        videoPreview.load();
+
+        showVideo();
 
         timelineClip.textContent =
             "🎵 " + file.name;
 
+        saveHistory();
+
         return;
     }
 
 
-    alert("Ye file supported nahi hai.");
+    alert("Ye file type supported nahi hai.");
 
 });
 
 
 /* =====================================================
-   VIDEO LOADED
+   VIDEO METADATA
 ===================================================== */
 
-video.addEventListener("loadedmetadata", function () {
+videoPreview.addEventListener(
+    "loadedmetadata",
+    function () {
 
-    totalTime.textContent =
-        formatTime(video.duration);
+        totalTime.textContent =
+            formatTime(videoPreview.duration);
 
-    currentTime.textContent =
-        "00:00 / " +
-        formatTime(video.duration);
+        currentTime.textContent =
+            "00:00";
 
-    seekBar.value = 0;
+        seekBar.value = 0;
 
-});
+    }
+);
 
 
 /* =====================================================
    VIDEO TIME UPDATE
 ===================================================== */
 
-video.addEventListener("timeupdate", function () {
+videoPreview.addEventListener(
+    "timeupdate",
+    function () {
 
-    if (!video.duration) return;
+        if (!videoPreview.duration) return;
 
-    seekBar.value =
-        (video.currentTime / video.duration) * 100;
+        seekBar.value =
+            (
+                videoPreview.currentTime /
+                videoPreview.duration
+            ) * 100;
 
-    currentTime.textContent =
-        formatTime(video.currentTime) +
-        " / " +
-        formatTime(video.duration);
+        currentTime.textContent =
+            formatTime(
+                videoPreview.currentTime
+            );
 
-});
+        totalTime.textContent =
+            formatTime(
+                videoPreview.duration
+            );
+
+    }
+);
 
 
 /* =====================================================
    PLAY / PAUSE
 ===================================================== */
 
-playBtn.addEventListener("click", function () {
+playBtn.addEventListener(
+    "click",
+    function () {
 
-    if (!video.src) {
+        if (!videoPreview.src) {
 
-        alert("Pehle video import karo.");
+            alert("Pehle video import karo.");
 
-        return;
+            return;
+        }
+
+        if (videoPreview.paused) {
+
+            videoPreview.play();
+
+        } else {
+
+            videoPreview.pause();
+
+        }
+
     }
+);
 
-    if (video.paused) {
 
-        video.play()
-            .catch(function () {
+videoPreview.addEventListener(
+    "play",
+    function () {
 
-                alert("Video play nahi ho pa raha.");
-
-            });
-
-    } else {
-
-        video.pause();
+        playBtn.textContent = "⏸";
 
     }
-
-});
-
-
-video.addEventListener("play", function () {
-
-    playBtn.textContent = "⏸";
-
-});
+);
 
 
-video.addEventListener("pause", function () {
+videoPreview.addEventListener(
+    "pause",
+    function () {
 
-    playBtn.textContent = "▶";
+        playBtn.textContent = "▶";
 
-});
-
-
-video.addEventListener("ended", function () {
-
-    playBtn.textContent = "▶";
-
-});
+    }
+);
 
 
 /* =====================================================
    SEEK
 ===================================================== */
 
-seekBar.addEventListener("input", function () {
+seekBar.addEventListener(
+    "input",
+    function () {
 
-    if (!video.duration) return;
+        if (!videoPreview.duration) return;
 
-    video.currentTime =
-        (Number(this.value) / 100) *
-        video.duration;
+        videoPreview.currentTime =
+            (
+                Number(this.value) / 100
+            ) *
+            videoPreview.duration;
 
-});
+    }
+);
 
 
 /* =====================================================
    MUTE
 ===================================================== */
 
-muteBtn.addEventListener("click", function () {
+muteBtn.addEventListener(
+    "click",
+    function () {
 
-    if (!video.src) return;
+        videoPreview.muted =
+            !videoPreview.muted;
 
-    video.muted =
-        !video.muted;
+        muteBtn.textContent =
+            videoPreview.muted
+                ? "🔇"
+                : "🔊";
 
-    muteBtn.textContent =
-        video.muted
-            ? "🔇"
-            : "🔊";
-
-});
+    }
+);
 
 
 /* =====================================================
    VOLUME
 ===================================================== */
 
-volume.addEventListener("input", function () {
+volume.addEventListener(
+    "input",
+    function () {
 
-    video.volume =
-        Number(this.value) / 100;
+        videoPreview.volume =
+            Number(this.value) / 100;
 
-    if (video.volume > 0) {
+        if (videoPreview.volume > 0) {
 
-        video.muted = false;
+            videoPreview.muted = false;
 
-        muteBtn.textContent = "🔊";
+            muteBtn.textContent = "🔊";
+
+        }
 
     }
-
-});
+);
 
 
 /* =====================================================
-   FILTER SYSTEM
+   TEXT
 ===================================================== */
 
-function applyFilters() {
+function updateText() {
 
-    video.style.filter =
-        "brightness(" +
-        brightness.value +
-        "%) " +
+    textOverlay.textContent =
+        textInput.value;
 
-        "contrast(" +
-        contrast.value +
-        "%) " +
+    textOverlay.style.fontSize =
+        textSize.value + "px";
 
-        "saturate(" +
-        saturation.value +
-        "%) " +
+    if (textInput.value.trim() === "") {
 
-        "blur(" +
-        blur.value +
-        "px)";
+        textOverlay.style.display = "none";
 
-    image.style.filter =
+    } else {
+
+        textOverlay.style.display = "block";
+
+    }
+
+}
+
+
+textInput.addEventListener(
+    "input",
+    function () {
+
+        updateText();
+        saveHistory();
+
+    }
+);
+
+
+textSize.addEventListener(
+    "input",
+    function () {
+
+        updateText();
+
+    }
+);
+
+
+/* =====================================================
+   FILTERS
+===================================================== */
+
+function updateFilters() {
+
+    videoPreview.style.filter =
         "brightness(" +
         brightness.value +
         "%) " +
@@ -380,400 +441,232 @@ function applyFilters() {
 
 brightness.addEventListener(
     "input",
-    applyFilters
+    updateFilters
 );
 
 contrast.addEventListener(
     "input",
-    applyFilters
+    updateFilters
 );
 
 saturation.addEventListener(
     "input",
-    applyFilters
+    updateFilters
 );
 
 blur.addEventListener(
     "input",
-    applyFilters
+    updateFilters
 );
-
-
-/* =====================================================
-   TEXT
-===================================================== */
-
-textInput.addEventListener("input", function () {
-
-    textOverlay.textContent =
-        this.value;
-
-    if (this.value.trim() !== "") {
-
-        textOverlay.style.display =
-            "block";
-
-    } else {
-
-        textOverlay.style.display =
-            "none";
-
-    }
-
-    saveState();
-
-});
-
-
-/* TEXT SIZE */
-
-textSize.addEventListener("input", function () {
-
-    textOverlay.style.fontSize =
-        this.value + "px";
-
-});
 
 
 /* =====================================================
    ASPECT RATIO
 ===================================================== */
 
-aspectRatio.addEventListener("change", function () {
+aspectRatio.addEventListener(
+    "change",
+    function () {
 
-    const ratio = this.value;
+        if (this.value === "auto") {
 
-    if (ratio === "auto") {
+            videoPreview.style.aspectRatio =
+                "auto";
 
-        video.style.aspectRatio = "auto";
-        image.style.aspectRatio = "auto";
+            imagePreview.style.aspectRatio =
+                "auto";
 
-        return;
+        } else {
+
+            videoPreview.style.aspectRatio =
+                this.value;
+
+            imagePreview.style.aspectRatio =
+                this.value;
+
+        }
+
     }
-
-    video.style.aspectRatio = ratio;
-    image.style.aspectRatio = ratio;
-
-});
-
-
-/* =====================================================
-   SIDEBAR TOOLS
-===================================================== */
-
-document
-    .querySelectorAll(".tool")
-    .forEach(function (tool) {
-
-        tool.addEventListener("click", function () {
-
-            document
-                .querySelectorAll(".tool")
-                .forEach(function (x) {
-
-                    x.classList.remove("active");
-
-                });
-
-            this.classList.add("active");
-
-            const selectedTool =
-                this.dataset.tool;
-
-            console.log(
-                "Selected tool:",
-                selectedTool
-            );
-
-
-            /* TEXT */
-
-            if (selectedTool === "text") {
-
-                textInput.focus();
-
-                return;
-            }
-
-
-            /* FILTERS */
-
-            if (selectedTool === "filters") {
-
-                brightness.focus();
-
-                return;
-            }
-
-
-            /* AUDIO */
-
-            if (selectedTool === "audio") {
-
-                alert(
-                    "Audio tool selected. Import button se audio file add kar sakte ho."
-                );
-
-                return;
-            }
-
-
-            /* SPEED */
-
-            if (selectedTool === "speed") {
-
-                alert(
-                    "Speed tool ready hai. Video playback controls ke saath use kiya ja sakta hai."
-                );
-
-                return;
-            }
-
-
-            /* CROP */
-
-            if (selectedTool === "crop") {
-
-                alert(
-                    "Crop tool selected."
-                );
-
-                return;
-            }
-
-
-            /* AI */
-
-            if (selectedTool === "ai") {
-
-                alert(
-                    "AI Tools selected. Real AI generation ke liye external AI API/backend chahiye."
-                );
-
-                return;
-            }
-
-
-            /* THUMBNAIL */
-
-            if (selectedTool === "thumbnail") {
-
-                alert(
-                    "Thumbnail Maker selected."
-                );
-
-                return;
-            }
-
-
-            /* STICKERS */
-
-            if (selectedTool === "stickers") {
-
-                textOverlay.textContent = "⭐";
-
-                textOverlay.style.display =
-                    "block";
-
-                return;
-            }
-
-
-            /* TRANSITION */
-
-            if (selectedTool === "transition") {
-
-                alert(
-                    "Transition tool selected."
-                );
-
-                return;
-            }
-
-        });
-
-    });
+);
 
 
 /* =====================================================
    SPLIT
 ===================================================== */
 
-splitBtn.addEventListener("click", function () {
+splitBtn.addEventListener(
+    "click",
+    function () {
 
-    if (!video.src || !video.duration) {
+        if (!videoPreview.src) {
 
-        alert(
-            "Pehle video import karo."
-        );
+            alert("Pehle video import karo.");
 
-        return;
+            return;
+        }
+
+        if (!videoPreview.duration) {
+
+            alert("Video abhi load ho raha hai.");
+
+            return;
+        }
+
+        const position =
+            videoPreview.currentTime;
+
+        const total =
+            videoPreview.duration;
+
+        const percent =
+            (position / total) * 100;
+
+        timelineClip.innerHTML =
+            "🎬 Clip 1 &nbsp; | &nbsp; ✂ Split @ " +
+            formatTime(position) +
+            " &nbsp; | &nbsp; Clip 2";
+
+        timelineClip.style.background =
+            "linear-gradient(90deg,#5148db " +
+            percent +
+            "%,#756dff " +
+            percent +
+            "%)";
+
+        saveHistory();
+
     }
-
-    const percent =
-        (video.currentTime /
-        video.duration) * 100;
-
-
-    timelineClip.style.width =
-        percent + "%";
-
-
-    timelineClip.textContent =
-        "✂ Clip 1 | " +
-        formatTime(video.currentTime);
-
-
-    saveState();
-
-});
+);
 
 
 /* =====================================================
    DELETE
 ===================================================== */
 
-deleteBtn.addEventListener("click", function () {
+deleteBtn.addEventListener(
+    "click",
+    function () {
 
-    if (!currentFile) {
+        if (!mediaURL) {
 
-        alert(
-            "Delete karne ke liye media import karo."
-        );
+            alert("Delete karne ke liye media import karo.");
 
-        return;
+            return;
+        }
+
+        if (
+            !confirm(
+                "Current media delete karna hai?"
+            )
+        ) {
+            return;
+        }
+
+        videoPreview.pause();
+
+        videoPreview.removeAttribute("src");
+
+        videoPreview.load();
+
+        imagePreview.removeAttribute("src");
+
+        showEmpty();
+
+        timelineClip.textContent =
+            "No media imported";
+
+        currentTime.textContent =
+            "00:00";
+
+        totalTime.textContent =
+            "00:00";
+
+        seekBar.value = 0;
+
+        if (mediaURL) {
+
+            URL.revokeObjectURL(mediaURL);
+
+            mediaURL = null;
+
+        }
+
+        mediaInput.value = "";
+
+        saveHistory();
+
     }
-
-
-    video.pause();
-
-    video.removeAttribute("src");
-
-    video.load();
-
-    image.removeAttribute("src");
-
-
-    video.style.display =
-        "none";
-
-    image.style.display =
-        "none";
-
-    emptyPreview.style.display =
-        "flex";
-
-
-    timelineClip.textContent =
-        "No media imported";
-
-
-    currentFile = null;
-
-    mediaInput.value = "";
-
-
-    currentTime.textContent =
-        "00:00";
-
-    totalTime.textContent =
-        "00:00";
-
-    seekBar.value = 0;
-
-
-    textInput.value = "";
-
-    textOverlay.textContent = "";
-
-    textOverlay.style.display =
-        "none";
-
-
-    saveState();
-
-});
+);
 
 
 /* =====================================================
    NEW PROJECT
 ===================================================== */
 
-newBtn.addEventListener("click", function () {
+newBtn.addEventListener(
+    "click",
+    function () {
 
-    video.pause();
+        videoPreview.pause();
 
-    video.removeAttribute("src");
+        videoPreview.removeAttribute("src");
 
-    video.load();
+        videoPreview.load();
 
-    image.removeAttribute("src");
+        imagePreview.removeAttribute("src");
 
+        showEmpty();
 
-    video.style.display =
-        "none";
+        timelineClip.textContent =
+            "No media imported";
 
-    image.style.display =
-        "none";
+        textInput.value = "";
 
-    emptyPreview.style.display =
-        "flex";
+        textOverlay.textContent = "";
 
+        textOverlay.style.display =
+            "none";
 
-    timelineClip.textContent =
-        "No media imported";
+        seekBar.value = 0;
 
+        currentTime.textContent =
+            "00:00";
 
-    mediaInput.value = "";
+        totalTime.textContent =
+            "00:00";
 
-    currentFile = null;
+        brightness.value = 100;
+        contrast.value = 100;
+        saturation.value = 100;
+        blur.value = 0;
 
+        updateFilters();
 
-    currentTime.textContent =
-        "00:00";
+        aspectRatio.value = "auto";
 
-    totalTime.textContent =
-        "00:00";
+        videoPreview.style.aspectRatio =
+            "auto";
 
-    seekBar.value = 0;
+        imagePreview.style.aspectRatio =
+            "auto";
 
+        if (mediaURL) {
 
-    textInput.value = "";
+            URL.revokeObjectURL(mediaURL);
 
-    textOverlay.textContent = "";
+            mediaURL = null;
 
-    textOverlay.style.display =
-        "none";
+        }
 
+        mediaInput.value = "";
 
-    /* RESET FILTERS */
+        history = [];
+        historyIndex = -1;
 
-    brightness.value = 100;
-    contrast.value = 100;
-    saturation.value = 100;
-    blur.value = 0;
+        saveHistory();
 
-    applyFilters();
-
-
-    /* RESET ASPECT */
-
-    aspectRatio.value = "auto";
-
-    video.style.aspectRatio =
-        "auto";
-
-    image.style.aspectRatio =
-        "auto";
-
-
-    history = [];
-    future = [];
-
-
-    saveState();
-
-});
+    }
+);
 
 
 /* =====================================================
@@ -796,312 +689,382 @@ function getState() {
 
         blur: blur.value,
 
-        aspect: aspectRatio.value,
-
-        time: video.currentTime || 0
+        aspectRatio: aspectRatio.value
 
     };
 
 }
 
 
-function saveState() {
+function saveHistory() {
 
-    history.push(
-        getState()
-    );
+    const state =
+        JSON.stringify(getState());
 
-    if (history.length > 30) {
-
-        history.shift();
-
+    if (
+        historyIndex >= 0 &&
+        history[historyIndex] === state
+    ) {
+        return;
     }
 
-    future = [];
+    history =
+        history.slice(
+            0,
+            historyIndex + 1
+        );
+
+    history.push(state);
+
+    historyIndex =
+        history.length - 1;
 
 }
 
 
 function restoreState(state) {
 
+    const data =
+        JSON.parse(state);
+
     textInput.value =
-        state.text;
+        data.text;
 
     textSize.value =
-        state.textSize;
+        data.textSize;
 
     brightness.value =
-        state.brightness;
+        data.brightness;
 
     contrast.value =
-        state.contrast;
+        data.contrast;
 
     saturation.value =
-        state.saturation;
+        data.saturation;
 
     blur.value =
-        state.blur;
+        data.blur;
 
     aspectRatio.value =
-        state.aspect;
+        data.aspectRatio;
 
+    updateText();
 
-    textOverlay.textContent =
-        state.text;
+    updateFilters();
 
-    textOverlay.style.fontSize =
-        state.textSize + "px";
+    if (
+        aspectRatio.value === "auto"
+    ) {
 
-    textOverlay.style.display =
-        state.text
-            ? "block"
-            : "none";
-
-
-    applyFilters();
-
-
-    if (state.aspect === "auto") {
-
-        video.style.aspectRatio =
+        videoPreview.style.aspectRatio =
             "auto";
 
-        image.style.aspectRatio =
+        imagePreview.style.aspectRatio =
             "auto";
 
     } else {
 
-        video.style.aspectRatio =
-            state.aspect;
+        videoPreview.style.aspectRatio =
+            aspectRatio.value;
 
-        image.style.aspectRatio =
-            state.aspect;
-
-    }
-
-
-    if (
-        video.duration &&
-        state.time <= video.duration
-    ) {
-
-        video.currentTime =
-            state.time;
+        imagePreview.style.aspectRatio =
+            aspectRatio.value;
 
     }
 
 }
 
 
-/* UNDO */
+undoBtn.addEventListener(
+    "click",
+    function () {
 
-undoBtn.addEventListener("click", function () {
+        if (historyIndex <= 0) {
 
-    if (history.length <= 1) {
+            return;
 
-        return;
+        }
+
+        historyIndex--;
+
+        restoreState(
+            history[historyIndex]
+        );
+
     }
-
-    const current =
-        history.pop();
-
-    future.push(current);
+);
 
 
-    const previous =
-        history[history.length - 1];
+redoBtn.addEventListener(
+    "click",
+    function () {
 
-    restoreState(previous);
+        if (
+            historyIndex >=
+            history.length - 1
+        ) {
 
-});
+            return;
 
+        }
 
-/* REDO */
+        historyIndex++;
 
-redoBtn.addEventListener("click", function () {
+        restoreState(
+            history[historyIndex]
+        );
 
-    if (!future.length) {
-
-        return;
     }
-
-    const state =
-        future.pop();
-
-    history.push(state);
-
-    restoreState(state);
-
-});
+);
 
 
 /* =====================================================
-   EXPORT VIDEO
+   EXPORT
 ===================================================== */
 
-exportBtn.addEventListener("click", async function () {
+exportBtn.addEventListener(
+    "click",
+    async function () {
 
-    if (!video.src) {
+        if (!videoPreview.src) {
 
-        alert(
-            "Export karne ke liye pehle video import karo."
-        );
-
-        return;
-    }
-
-
-    if (!video.captureStream) {
-
-        alert(
-            "Is browser mein video export support nahi hai."
-        );
-
-        return;
-    }
-
-
-    try {
-
-        const stream =
-            video.captureStream();
-
-
-        const recorder =
-            new MediaRecorder(
-                stream,
-                {
-                    mimeType:
-                        "video/webm"
-                }
+            alert(
+                "Pehle ek video import karo."
             );
 
+            return;
+        }
 
-        const chunks = [];
+        if (
+            !videoPreview.captureStream ||
+            !window.MediaRecorder
+        ) {
 
+            alert(
+                "Is browser mein direct video export supported nahi hai."
+            );
 
-        recorder.ondataavailable =
-            function (event) {
+            return;
+        }
 
-                if (event.data.size > 0) {
+        try {
 
-                    chunks.push(
-                        event.data
-                    );
+            const oldTime =
+                videoPreview.currentTime;
 
-                }
+            const stream =
+                videoPreview.captureStream();
 
-            };
+            const chunks = [];
 
-
-        recorder.onstop =
-            function () {
-
-                const blob =
-                    new Blob(
-                        chunks,
-                        {
-                            type:
-                                "video/webm"
-                        }
-                    );
-
-
-                const url =
-                    URL.createObjectURL(
-                        blob
-                    );
+            const recorder =
+                new MediaRecorder(
+                    stream,
+                    {
+                        mimeType:
+                            "video/webm"
+                    }
+                );
 
 
-                const a =
-                    document.createElement("a");
+            recorder.ondataavailable =
+                function (event) {
 
-                a.href = url;
+                    if (
+                        event.data &&
+                        event.data.size > 0
+                    ) {
 
-                a.download =
-                    "flix-video.webm";
+                        chunks.push(
+                            event.data
+                        );
 
-                document.body.appendChild(a);
+                    }
 
-                a.click();
+                };
 
-                a.remove();
 
-                setTimeout(function () {
+            recorder.onstop =
+                function () {
+
+                    const blob =
+                        new Blob(
+                            chunks,
+                            {
+                                type:
+                                    "video/webm"
+                            }
+                        );
+
+                    const url =
+                        URL.createObjectURL(
+                            blob
+                        );
+
+                    const a =
+                        document.createElement(
+                            "a"
+                        );
+
+                    a.href = url;
+
+                    a.download =
+                        "flix-video.webm";
+
+                    document.body.appendChild(a);
+
+                    a.click();
+
+                    a.remove();
 
                     URL.revokeObjectURL(url);
 
-                }, 1000);
+                    videoPreview.currentTime =
+                        oldTime;
+
+                    playBtn.textContent = "▶";
+
+                };
 
 
-                alert(
-                    "Export complete! Video save ho gaya."
-                );
+            videoPreview.currentTime = 0;
 
-            };
+            recorder.start();
 
-
-        video.currentTime = 0;
-
-        video.muted = false;
-
-        recorder.start();
-
-        video.play();
+            await videoPreview.play();
 
 
-        video.onended =
-            function () {
+            videoPreview.onended =
+                function () {
 
-                recorder.stop();
+                    if (
+                        recorder.state !==
+                        "inactive"
+                    ) {
 
-            };
+                        recorder.stop();
+
+                    }
+
+                };
 
 
-    } catch (error) {
+        } catch (error) {
 
-        console.error(error);
+            console.error(error);
 
-        alert(
-            "Export mein problem aayi."
-        );
+            alert(
+                "Export mein problem aayi. Browser console check karo."
+            );
+
+        }
 
     }
+);
 
-});
+
+/* =====================================================
+   SIDEBAR TOOLS
+===================================================== */
+
+document
+    .querySelectorAll(".tool")
+    .forEach(function (tool) {
+
+        tool.addEventListener(
+            "click",
+            function () {
+
+                document
+                    .querySelectorAll(".tool")
+                    .forEach(
+                        function (item) {
+
+                            item.classList.remove(
+                                "active"
+                            );
+
+                        }
+                    );
+
+                this.classList.add("active");
+
+                const selectedTool =
+                    this.dataset.tool;
+
+                console.log(
+                    "Selected tool:",
+                    selectedTool
+                );
+
+                if (
+                    selectedTool ===
+                    "text"
+                ) {
+
+                    textInput.focus();
+
+                }
+
+                if (
+                    selectedTool ===
+                    "filters"
+                ) {
+
+                    brightness.focus();
+
+                }
+
+                if (
+                    selectedTool ===
+                    "thumbnail"
+                ) {
+
+                    alert(
+                        "Thumbnail Maker selected. Media import karke use karo."
+                    );
+
+                }
+
+            }
+        );
+
+    });
 
 
 /* =====================================================
    VIDEO ERROR
 ===================================================== */
 
-video.addEventListener("error", function () {
+videoPreview.addEventListener(
+    "error",
+    function () {
 
-    console.error(
-        "Video error:",
-        video.error
-    );
+        console.error(
+            "Video error:",
+            videoPreview.error
+        );
 
-    alert(
-        "Video browser mein play nahi ho raha. MP4 H.264 format try karo."
-    );
+        alert(
+            "Video browser mein play nahi ho raha. MP4 (H.264) video try karo."
+        );
 
-});
+    }
+);
 
 
 /* =====================================================
-   INITIAL STATE
+   INITIAL SETTINGS
 ===================================================== */
 
-video.style.display = "none";
-image.style.display = "none";
+videoPreview.volume = 1;
 
-emptyPreview.style.display = "flex";
+updateFilters();
 
-applyFilters();
+updateText();
 
-saveState();
+saveHistory();
 
 console.log(
-    "FLIX VIDEO EDITOR READY"
+    "FLIX VIDEO EDITOR SCRIPT LOADED SUCCESSFULLY"
 );
