@@ -1,10 +1,11 @@
 "use strict";
 
 /* =========================================
-   FLIX VIDEO EDITOR - WORKING SCRIPT
+   FLIX VIDEO EDITOR
 ========================================= */
 
 const fileInput = document.getElementById("mediaInput");
+
 const video = document.getElementById("videoPreview");
 const image = document.getElementById("imagePreview");
 const emptyPreview = document.getElementById("emptyPreview");
@@ -19,6 +20,7 @@ const volume = document.getElementById("volume");
 
 const newBtn = document.getElementById("newBtn");
 const exportBtn = document.getElementById("exportBtn");
+const deleteBtn = document.getElementById("deleteBtn");
 
 const timelineClip = document.getElementById("timelineClip");
 
@@ -32,11 +34,19 @@ const saturation = document.getElementById("saturation");
 const blur = document.getElementById("blur");
 
 const aspectRatio = document.getElementById("aspectRatio");
+const speedSelect = document.getElementById("speedSelect");
+
+const stickerSelect = document.getElementById("stickerSelect");
+const stickerOverlay = document.getElementById("stickerOverlay");
 
 const undoBtn = document.getElementById("undoBtn");
 const redoBtn = document.getElementById("redoBtn");
-const splitBtn = document.getElementById("splitBtn");
-const deleteBtn = document.getElementById("deleteBtn");
+
+const exportModal = document.getElementById("exportModal");
+const exportProgress = document.getElementById("exportProgress");
+const exportPercent = document.getElementById("exportPercent");
+const exportStatus = document.getElementById("exportStatus");
+const cancelExportBtn = document.getElementById("cancelExportBtn");
 
 
 /* =========================================
@@ -49,6 +59,10 @@ let currentType = "";
 
 let history = [];
 let historyIndex = -1;
+
+let exportRecorder = null;
+let exportAnimation = null;
+let exportCancelled = false;
 
 
 /* =========================================
@@ -85,13 +99,9 @@ function hasMedia() {
 }
 
 
-/* =========================================
-   PREVIEW
-========================================= */
-
 function showEmpty() {
 
-    emptyPreview.style.display = "flex";
+    emptyPreview.style.display = "block";
     video.style.display = "none";
     image.style.display = "none";
 
@@ -117,7 +127,7 @@ function showImage() {
 
 
 /* =========================================
-   IMPORT
+   IMPORT MEDIA
 ========================================= */
 
 fileInput.addEventListener("change", function () {
@@ -129,15 +139,14 @@ fileInput.addEventListener("change", function () {
 
     if (
         !file.type.startsWith("video/") &&
-        !file.type.startsWith("image/")
+        !file.type.startsWith("image/") &&
+        !file.type.startsWith("audio/")
     ) {
 
-        alert(
-            "Please select a supported video or image file."
-        );
-
+        alert("Unsupported media file.");
         fileInput.value = "";
         return;
+
     }
 
 
@@ -151,8 +160,6 @@ fileInput.addEventListener("change", function () {
 
     mediaURL = URL.createObjectURL(file);
 
-
-    /* VIDEO */
 
     if (file.type.startsWith("video/")) {
 
@@ -175,10 +182,9 @@ fileInput.addEventListener("change", function () {
         totalTime.textContent = "00:00";
 
         return;
+
     }
 
-
-    /* IMAGE */
 
     if (file.type.startsWith("image/")) {
 
@@ -189,6 +195,19 @@ fileInput.addEventListener("change", function () {
         timelineClip.textContent =
             "🖼 " + file.name;
 
+        return;
+
+    }
+
+
+    if (file.type.startsWith("audio/")) {
+
+        alert(
+            "Audio file imported. Audio-track editing will be added with the full timeline engine."
+        );
+
+        return;
+
     }
 
 });
@@ -198,225 +217,164 @@ fileInput.addEventListener("change", function () {
    VIDEO METADATA
 ========================================= */
 
-video.addEventListener(
-    "loadedmetadata",
-    function () {
+video.addEventListener("loadedmetadata", function () {
 
-        totalTime.textContent =
-            formatTime(video.duration);
+    totalTime.textContent =
+        formatTime(video.duration);
 
-        currentTime.textContent =
-            "00:00";
+    currentTime.textContent =
+        "00:00";
 
-        seekBar.value = 0;
+    seekBar.value = 0;
 
-    }
-);
+    video.playbackRate =
+        Number(speedSelect.value);
 
-
-/* =========================================
-   VIDEO ERROR
-========================================= */
-
-video.addEventListener(
-    "error",
-    function () {
-
-        console.error(
-            "Video error:",
-            video.error
-        );
-
-        alert(
-            "This video could not be played. Please try an MP4 video encoded with H.264."
-        );
-
-    }
-);
+});
 
 
 /* =========================================
    PLAY / PAUSE
 ========================================= */
 
-playBtn.addEventListener(
-    "click",
-    function () {
+playBtn.addEventListener("click", function () {
 
-        if (!hasVideo()) {
+    if (!hasVideo()) {
 
-            alert(
-                "Please import a video first."
-            );
-
-            return;
-        }
-
-
-        if (video.paused) {
-
-            video.play()
-                .catch(function (error) {
-
-                    console.error(error);
-
-                    alert(
-                        "The video could not be played."
-                    );
-
-                });
-
-        } else {
-
-            video.pause();
-
-        }
+        alert("Please import a video first.");
+        return;
 
     }
-);
 
 
-video.addEventListener(
-    "play",
-    function () {
+    if (video.paused) {
 
-        playBtn.textContent = "⏸";
+        video.play().catch(function (error) {
 
-    }
-);
+            console.error(error);
 
+        });
 
-video.addEventListener(
-    "pause",
-    function () {
+    } else {
 
-        playBtn.textContent = "▶";
+        video.pause();
 
     }
-);
+
+});
 
 
-video.addEventListener(
-    "ended",
-    function () {
+video.addEventListener("play", function () {
 
-        playBtn.textContent = "▶";
+    playBtn.textContent = "⏸";
 
-    }
-);
+});
+
+
+video.addEventListener("pause", function () {
+
+    playBtn.textContent = "▶";
+
+});
+
+
+video.addEventListener("ended", function () {
+
+    playBtn.textContent = "▶";
+
+});
 
 
 /* =========================================
-   TIME
+   TIME UPDATE
 ========================================= */
 
-video.addEventListener(
-    "timeupdate",
-    function () {
+video.addEventListener("timeupdate", function () {
 
-        if (!Number.isFinite(video.duration)) {
-            return;
-        }
-
-
-        seekBar.value =
-            (video.currentTime / video.duration) * 100;
-
-
-        currentTime.textContent =
-            formatTime(video.currentTime);
-
+    if (!Number.isFinite(video.duration)) {
+        return;
     }
-);
+
+    seekBar.value =
+        (video.currentTime / video.duration) * 100;
+
+    currentTime.textContent =
+        formatTime(video.currentTime);
+
+});
 
 
 /* =========================================
    SEEK
 ========================================= */
 
-seekBar.addEventListener(
-    "input",
-    function () {
+seekBar.addEventListener("input", function () {
 
-        if (!hasVideo()) return;
+    if (!hasVideo()) return;
 
-        if (!Number.isFinite(video.duration)) {
-            return;
-        }
+    if (!Number.isFinite(video.duration)) return;
 
+    video.currentTime =
+        (Number(this.value) / 100) *
+        video.duration;
 
-        video.currentTime =
-            (Number(this.value) / 100) *
-            video.duration;
-
-    }
-);
+});
 
 
 /* =========================================
    VOLUME
 ========================================= */
 
-volume.addEventListener(
-    "input",
-    function () {
+volume.addEventListener("input", function () {
 
-        const value =
-            Number(this.value) / 100;
+    const value =
+        Number(this.value) / 100;
 
-        video.volume = value;
+    video.volume = value;
 
-        video.muted = value === 0;
+    video.muted = value === 0;
 
-        muteBtn.textContent =
-            video.muted ? "🔇" : "🔊";
+    muteBtn.textContent =
+        video.muted ? "🔇" : "🔊";
 
-    }
-);
+});
 
 
 /* =========================================
    MUTE
 ========================================= */
 
-muteBtn.addEventListener(
-    "click",
-    function () {
+muteBtn.addEventListener("click", function () {
 
-        if (!hasVideo()) return;
+    if (!hasVideo()) return;
 
-        video.muted = !video.muted;
+    video.muted = !video.muted;
 
-        muteBtn.textContent =
-            video.muted ? "🔇" : "🔊";
+    muteBtn.textContent =
+        video.muted ? "🔇" : "🔊";
 
-    }
-);
+});
 
 
 /* =========================================
    FILTERS
 ========================================= */
 
+function getFilterString() {
+
+    return (
+        "brightness(" + brightness.value + "%) " +
+        "contrast(" + contrast.value + "%) " +
+        "saturate(" + saturation.value + "%) " +
+        "blur(" + blur.value + "px)"
+    );
+
+}
+
+
 function applyFilters() {
 
-    const filter =
-        "brightness(" +
-        brightness.value +
-        "%) " +
-
-        "contrast(" +
-        contrast.value +
-        "%) " +
-
-        "saturate(" +
-        saturation.value +
-        "%) " +
-
-        "blur(" +
-        blur.value +
-        "px)";
-
+    const filter = getFilterString();
 
     video.style.filter = filter;
     image.style.filter = filter;
@@ -424,212 +382,230 @@ function applyFilters() {
 }
 
 
-brightness.addEventListener(
-    "input",
-    applyFilters
-);
+brightness.addEventListener("input", function () {
 
-contrast.addEventListener(
-    "input",
-    applyFilters
-);
+    applyFilters();
+    saveState();
 
-saturation.addEventListener(
-    "input",
-    applyFilters
-);
+});
 
-blur.addEventListener(
-    "input",
-    applyFilters
-);
+contrast.addEventListener("input", function () {
+
+    applyFilters();
+    saveState();
+
+});
+
+saturation.addEventListener("input", function () {
+
+    applyFilters();
+    saveState();
+
+});
+
+blur.addEventListener("input", function () {
+
+    applyFilters();
+    saveState();
+
+});
 
 
 /* =========================================
    TEXT
 ========================================= */
 
-textInput.addEventListener(
-    "input",
-    function () {
+textInput.addEventListener("input", function () {
 
-        textOverlay.textContent =
-            this.value;
+    textOverlay.textContent =
+        this.value;
 
-        textOverlay.style.display =
-            this.value.trim()
-                ? "block"
-                : "none";
+    textOverlay.style.display =
+        this.value.trim()
+            ? "block"
+            : "none";
+
+    saveState();
+
+});
+
+
+textSize.addEventListener("input", function () {
+
+    textOverlay.style.fontSize =
+        this.value + "px";
+
+    saveState();
+
+});
+
+
+/* =========================================
+   SPEED
+========================================= */
+
+speedSelect.addEventListener("change", function () {
+
+    const speed =
+        Number(this.value);
+
+    if (hasVideo()) {
+
+        video.playbackRate = speed;
 
     }
-);
 
+    saveState();
 
-textSize.addEventListener(
-    "input",
-    function () {
-
-        textOverlay.style.fontSize =
-            this.value + "px";
-
-    }
-);
+});
 
 
 /* =========================================
    ASPECT RATIO
 ========================================= */
 
-aspectRatio.addEventListener(
-    "change",
-    function () {
+aspectRatio.addEventListener("change", function () {
 
-        if (this.value === "auto") {
+    applyAspectRatio();
 
-            video.style.aspectRatio = "";
-            image.style.aspectRatio = "";
+    saveState();
 
-        } else {
+});
 
-            video.style.aspectRatio =
-                this.value;
 
-            image.style.aspectRatio =
-                this.value;
+function applyAspectRatio() {
 
-        }
+    const value = aspectRatio.value;
+
+    if (value === "auto") {
+
+        video.style.aspectRatio = "";
+        image.style.aspectRatio = "";
+
+    } else {
+
+        video.style.aspectRatio = value;
+        image.style.aspectRatio = value;
 
     }
-);
+
+}
+
+
+/* =========================================
+   STICKERS
+========================================= */
+
+stickerSelect.addEventListener("change", function () {
+
+    stickerOverlay.textContent =
+        this.value;
+
+    stickerOverlay.style.display =
+        this.value ? "block" : "none";
+
+});
 
 
 /* =========================================
    NEW PROJECT
 ========================================= */
 
-newBtn.addEventListener(
-    "click",
-    function () {
+newBtn.addEventListener("click", resetProject);
 
-        if (mediaURL) {
+function resetProject() {
 
-            URL.revokeObjectURL(
-                mediaURL
-            );
+    if (mediaURL) {
 
-        }
-
+        URL.revokeObjectURL(mediaURL);
         mediaURL = null;
-        currentFile = null;
-        currentType = "";
-
-
-        video.pause();
-
-        video.removeAttribute("src");
-
-        video.load();
-
-        image.removeAttribute("src");
-
-
-        showEmpty();
-
-
-        timelineClip.textContent =
-            "No media imported";
-
-
-        playBtn.textContent = "▶";
-
-        seekBar.value = 0;
-
-        currentTime.textContent =
-            "00:00";
-
-        totalTime.textContent =
-            "00:00";
-
-
-        textInput.value = "";
-
-        textOverlay.textContent = "";
-
-        textOverlay.style.display =
-            "none";
-
-
-        brightness.value = 100;
-        contrast.value = 100;
-        saturation.value = 100;
-        blur.value = 0;
-
-        aspectRatio.value = "auto";
-
-
-        applyFilters();
-
-
-        fileInput.value = "";
 
     }
-);
+
+
+    currentFile = null;
+    currentType = "";
+
+
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+
+    image.removeAttribute("src");
+
+
+    showEmpty();
+
+
+    timelineClip.textContent =
+        "No media imported";
+
+
+    playBtn.textContent = "▶";
+
+    seekBar.value = 0;
+
+    currentTime.textContent = "00:00";
+    totalTime.textContent = "00:00";
+
+
+    textInput.value = "";
+    textOverlay.textContent = "";
+    textOverlay.style.display = "none";
+
+
+    stickerSelect.value = "";
+    stickerOverlay.textContent = "";
+    stickerOverlay.style.display = "none";
+
+
+    brightness.value = 100;
+    contrast.value = 100;
+    saturation.value = 100;
+    blur.value = 0;
+
+
+    speedSelect.value = 1;
+    aspectRatio.value = "auto";
+
+
+    video.playbackRate = 1;
+
+    applyFilters();
+    applyAspectRatio();
+
+
+    fileInput.value = "";
+
+
+    history = [];
+    historyIndex = -1;
+
+    saveState();
+
+}
 
 
 /* =========================================
    DELETE
 ========================================= */
 
-deleteBtn.addEventListener(
-    "click",
-    function () {
+deleteBtn.addEventListener("click", function () {
 
-        if (!hasMedia()) {
+    if (!hasMedia()) {
 
-            alert(
-                "There is no media to delete."
-            );
-
-            return;
-        }
-
-        newBtn.click();
+        alert("There is no media to delete.");
+        return;
 
     }
-);
+
+    resetProject();
+
+});
 
 
 /* =========================================
-   SPLIT
-========================================= */
-
-splitBtn.addEventListener(
-    "click",
-    function () {
-
-        if (!hasVideo()) {
-
-            alert(
-                "Please import a video first."
-            );
-
-            return;
-        }
-
-
-        const position =
-            formatTime(video.currentTime);
-
-
-        timelineClip.textContent =
-            "✂ Split at " + position;
-
-    }
-);
-
-
-/* =========================================
-   SAVE STATE
+   HISTORY
 ========================================= */
 
 function getState() {
@@ -637,18 +613,17 @@ function getState() {
     return {
 
         text: textInput.value,
-
         textSize: textSize.value,
 
         brightness: brightness.value,
-
         contrast: contrast.value,
-
         saturation: saturation.value,
-
         blur: blur.value,
 
-        aspectRatio: aspectRatio.value
+        speed: speedSelect.value,
+        aspectRatio: aspectRatio.value,
+
+        sticker: stickerSelect.value
 
     };
 
@@ -661,58 +636,67 @@ function applyState(state) {
 
 
     textInput.value =
-        state.text;
+        state.text || "";
 
     textSize.value =
-        state.textSize;
+        state.textSize || 40;
+
 
     brightness.value =
-        state.brightness;
+        state.brightness || 100;
 
     contrast.value =
-        state.contrast;
+        state.contrast || 100;
 
     saturation.value =
-        state.saturation;
+        state.saturation || 100;
 
     blur.value =
-        state.blur;
+        state.blur || 0;
+
+
+    speedSelect.value =
+        state.speed || 1;
 
     aspectRatio.value =
-        state.aspectRatio;
+        state.aspectRatio || "auto";
+
+
+    stickerSelect.value =
+        state.sticker || "";
 
 
     textOverlay.textContent =
-        state.text;
-
+        textInput.value;
 
     textOverlay.style.display =
-        state.text.trim()
+        textInput.value.trim()
+            ? "block"
+            : "none";
+
+    textOverlay.style.fontSize =
+        textSize.value + "px";
+
+
+    stickerOverlay.textContent =
+        stickerSelect.value;
+
+    stickerOverlay.style.display =
+        stickerSelect.value
             ? "block"
             : "none";
 
 
-    textOverlay.style.fontSize =
-        state.textSize + "px";
+    if (hasVideo()) {
+
+        video.playbackRate =
+            Number(speedSelect.value);
+
+    }
 
 
     applyFilters();
-
-
-    if (state.aspectRatio === "auto") {
-
-        video.style.aspectRatio = "";
-        image.style.aspectRatio = "";
-
-    } else {
-
-        video.style.aspectRatio =
-            state.aspectRatio;
-
-        image.style.aspectRatio =
-            state.aspectRatio;
-
-    }
+    applyAspectRatio();
 
 }
 
@@ -721,11 +705,26 @@ function saveState() {
 
     const state = getState();
 
+    const last =
+        history[historyIndex];
+
+    if (
+        last &&
+        JSON.stringify(last) ===
+        JSON.stringify(state)
+    ) {
+
+        return;
+
+    }
+
+
     history =
         history.slice(
             0,
             historyIndex + 1
         );
+
 
     history.push(state);
 
@@ -744,422 +743,501 @@ function saveState() {
 }
 
 
-/* =========================================
-   UNDO
-========================================= */
+undoBtn.addEventListener("click", function () {
 
-undoBtn.addEventListener(
-    "click",
-    function () {
+    if (historyIndex <= 0) return;
 
-        if (historyIndex <= 0) {
+    historyIndex--;
 
-            return;
-        }
+    applyState(
+        history[historyIndex]
+    );
 
-
-        historyIndex--;
-
-        applyState(
-            history[historyIndex]
-        );
-
-    }
-);
+});
 
 
-/* =========================================
-   REDO
-========================================= */
+redoBtn.addEventListener("click", function () {
 
-redoBtn.addEventListener(
-    "click",
-    function () {
+    if (
+        historyIndex >=
+        history.length - 1
+    ) {
 
-        if (
-            historyIndex >=
-            history.length - 1
-        ) {
-
-            return;
-        }
-
-
-        historyIndex++;
-
-        applyState(
-            history[historyIndex]
-        );
+        return;
 
     }
-);
+
+
+    historyIndex++;
+
+    applyState(
+        history[historyIndex]
+    );
+
+});
 
 
 /* =========================================
-   SIDEBAR TOOLS
+   SIDEBAR
 ========================================= */
 
 document
-    .querySelectorAll(".tool")
-    .forEach(function (tool) {
+.querySelectorAll(".tool")
+.forEach(function (tool) {
 
-        tool.addEventListener(
-            "click",
-            function () {
+    tool.addEventListener("click", function () {
 
-                document
-                    .querySelectorAll(".tool")
-                    .forEach(function (item) {
+        document
+        .querySelectorAll(".tool")
+        .forEach(function (item) {
 
-                        item.classList.remove(
-                            "active"
-                        );
+            item.classList.remove("active");
 
-                    });
+        });
 
 
-                this.classList.add("active");
+        this.classList.add("active");
 
 
-                const name =
-                    this.dataset.tool;
+        const name =
+            this.dataset.tool;
 
 
-                if (name === "media") {
+        if (name === "media") {
 
-                    fileInput.click();
+            fileInput.click();
 
-                }
-
-
-                if (name === "text") {
-
-                    textInput.focus();
-
-                }
+        }
 
 
-                if (name === "filters") {
+        if (name === "text") {
 
-                    brightness.focus();
+            textInput.focus();
 
-                }
-
-
-                if (name === "audio") {
-
-                    alert(
-                        "Audio panel is ready for the next feature."
-                    );
-
-                }
+        }
 
 
-                if (name === "stickers") {
+        if (name === "filters") {
 
-                    alert(
-                        "Sticker feature will be added next."
-                    );
+            brightness.focus();
 
-                }
+        }
 
 
-                if (name === "transition") {
+        if (name === "speed") {
 
-                    alert(
-                        "Transition feature will be added next."
-                    );
+            speedSelect.focus();
 
-                }
+        }
 
 
-                if (name === "speed") {
+        if (name === "stickers") {
 
-                    alert(
-                        "Speed feature will be added next."
-                    );
+            stickerSelect.focus();
 
-                }
+        }
 
 
-                if (name === "crop") {
+        if (name === "crop") {
 
-                    alert(
-                        "Crop feature will be added next."
-                    );
+            toggleCrop();
 
-                }
+        }
 
 
-                if (name === "ai") {
+        if (name === "audio") {
 
-                    alert(
-                        "AI tools will be added next."
-                    );
+            alert(
+                "Audio import is available. Full multi-track audio editing requires the timeline engine."
+            );
 
-                }
+        }
 
 
-                if (name === "thumbnail") {
+        if (name === "transition") {
 
-                    alert(
-                        "Thumbnail Maker will be added next."
-                    );
+            alert(
+                "Transition controls will work between multiple timeline clips once the multi-clip timeline is added."
+            );
 
-                }
+        }
 
-            }
-        );
+
+        if (name === "ai") {
+
+            alert(
+                "AI Tools need an AI processing service/API. The editor UI is ready for connecting one."
+            );
+
+        }
+
+
+        if (name === "thumbnail") {
+
+            createThumbnail();
+
+        }
 
     });
 
+});
+
 
 /* =========================================
-   EXPORT
+   BASIC CROP MODE
 ========================================= */
 
-exportBtn.addEventListener(
-    "click",
-    function () {
+let cropMode = false;
 
-        if (!hasVideo()) {
+function toggleCrop() {
 
-            alert(
-                "Please import a video first."
-            );
+    cropMode = !cropMode;
 
-            return;
-        }
+    if (!hasMedia()) {
 
+        alert("Import media first.");
+        cropMode = false;
+        return;
 
-        if (
-            typeof video.captureStream !==
-            "function"
-        ) {
+    }
 
-            alert(
-                "Video export is not supported by this browser."
-            );
 
-            return;
-        }
+    if (cropMode) {
 
+        video.style.objectFit = "cover";
+        image.style.objectFit = "cover";
 
-        if (
-            typeof MediaRecorder ===
-            "undefined"
-        ) {
+        video.style.maxWidth = "75%";
+        image.style.maxWidth = "75%";
 
-            alert(
-                "Video export is not supported by this browser."
-            );
+        video.style.maxHeight = "75%";
+        image.style.maxHeight = "75%";
 
-            return;
-        }
+        alert(
+            "Crop preview ON. Choose an Aspect Ratio to change the crop frame."
+        );
 
+    } else {
 
-        const types = [
+        video.style.objectFit = "contain";
+        image.style.objectFit = "contain";
 
-            "video/webm;codecs=vp9",
+        video.style.maxWidth = "92%";
+        image.style.maxWidth = "92%";
 
-            "video/webm;codecs=vp8",
+        video.style.maxHeight = "88%";
+        image.style.maxHeight = "88%";
 
-            "video/webm"
+    }
 
-        ];
+}
 
 
-        let mimeType = "";
+/* =========================================
+   THUMBNAIL
+========================================= */
 
+function createThumbnail() {
 
-        for (
-            let i = 0;
-            i < types.length;
-            i++
-        ) {
+    if (!hasVideo()) {
 
-            if (
-                MediaRecorder.isTypeSupported(
-                    types[i]
-                )
-            ) {
+        alert("Import a video first.");
+        return;
 
-                mimeType =
-                    types[i];
+    }
 
-                break;
 
-            }
+    const canvas =
+        document.createElement("canvas");
 
-        }
+    canvas.width = 1280;
+    canvas.height = 720;
 
 
-        if (!mimeType) {
+    const ctx =
+        canvas.getContext("2d");
 
-            alert(
-                "This browser cannot export the video."
-            );
 
-            return;
-        }
+    const oldTime =
+        video.currentTime;
 
 
-        const oldTime =
-            video.currentTime;
+    video.pause();
 
 
-        const stream =
-            video.captureStream();
+    const scale =
+        Math.min(
+            canvas.width / video.videoWidth,
+            canvas.height / video.videoHeight
+        );
 
 
-        const recorder =
-            new MediaRecorder(
-                stream,
-                {
-                    mimeType: mimeType
-                }
-            );
+    const width =
+        video.videoWidth * scale;
 
+    const height =
+        video.videoHeight * scale;
 
-        const chunks = [];
 
+    const x =
+        (canvas.width - width) / 2;
 
-        recorder.ondataavailable =
-            function (event) {
+    const y =
+        (canvas.height - height) / 2;
 
-                if (
-                    event.data &&
-                    event.data.size > 0
-                ) {
 
-                    chunks.push(
-                        event.data
-                    );
+    ctx.fillStyle = "#000";
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
 
-                }
 
-            };
+    ctx.filter =
+        getFilterString();
 
 
-        recorder.onstop =
-            function () {
+    ctx.drawImage(
+        video,
+        x,
+        y,
+        width,
+        height
+    );
 
-                const blob =
-                    new Blob(
-                        chunks,
-                        {
-                            type: mimeType
-                        }
-                    );
 
+    ctx.filter = "none";
 
-                const url =
-                    URL.createObjectURL(blob);
 
+    if (textInput.value.trim()) {
 
-                const link =
-                    document.createElement("a");
+        ctx.fillStyle = "#fff";
 
+        ctx.font =
+            "bold " +
+            Math.max(
+                30,
+                Number(textSize.value) * 2
+            ) +
+            "px Arial";
 
-                link.href = url;
+        ctx.textAlign = "center";
 
-                link.download =
-                    "flix-video.webm";
+        ctx.textBaseline = "middle";
 
+        ctx.shadowColor = "#000";
+        ctx.shadowBlur = 12;
 
-                document.body.appendChild(
-                    link
-                );
 
-                link.click();
-
-                link.remove();
-
-
-                setTimeout(
-                    function () {
-
-                        URL.revokeObjectURL(
-                            url
-                        );
-
-                    },
-                    1000
-                );
-
-            };
-
-
-        video.currentTime = 0;
-
-
-        recorder.start();
-
-
-        video.play()
-            .catch(function (error) {
-
-                console.error(error);
-
-                recorder.stop();
-
-            });
-
-
-        video.addEventListener(
-            "ended",
-            function stopRecording() {
-
-                if (
-                    recorder.state !==
-                    "inactive"
-                ) {
-
-                    recorder.stop();
-
-                }
-
-                video.removeEventListener(
-                    "ended",
-                    stopRecording
-                );
-
-                video.currentTime =
-                    oldTime;
-
-            }
+        ctx.fillText(
+            textInput.value,
+            canvas.width / 2,
+            canvas.height - 90
         );
 
     }
-);
 
 
-/* =========================================
-   INITIALIZE
-========================================= */
+    canvas.toBlob(function (blob) {
 
-showEmpty();
+        if (!blob) {
 
-applyFilters();
-
-saveState();
-
-
-/* =========================================
-   CLEANUP
-========================================= */
-
-window.addEventListener(
-    "beforeunload",
-    function () {
-
-        if (mediaURL) {
-
-            URL.revokeObjectURL(
-                mediaURL
-            );
+            alert("Thumbnail could not be created.");
+            return;
 
         }
 
+
+        const url =
+            URL.createObjectURL(blob);
+
+
+        const link =
+            document.createElement("a");
+
+        link.href = url;
+
+        link.download =
+            "flix-thumbnail.png";
+
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        link.remove();
+
+
+        setTimeout(function () {
+
+            URL.revokeObjectURL(url);
+
+        }, 2000);
+
+    }, "image/png");
+
+
+    video.currentTime = oldTime;
+
+}
+
+
+/* =========================================
+   CANVAS EXPORT
+========================================= */
+
+function getCanvasSize() {
+
+    let width =
+        video.videoWidth || 1280;
+
+    let height =
+        video.videoHeight || 720;
+
+
+    const ratio =
+        aspectRatio.value;
+
+
+    if (ratio === "16/9") {
+
+        width = 1280;
+        height = 720;
+
     }
-);
+
+
+    if (ratio === "9/16") {
+
+        width = 720;
+        height = 1280;
+
+    }
+
+
+    if (ratio === "1/1") {
+
+        width = 1080;
+        height = 1080;
+
+    }
+
+
+    if (ratio === "21/9") {
+
+        width = 1260;
+        height = 540;
+
+    }
+
+
+    return {
+        width,
+        height
+    };
+
+}
+
+
+function drawVideoToCanvas(
+    ctx,
+    canvas
+) {
+
+    const width =
+        canvas.width;
+
+    const height =
+        canvas.height;
+
+
+    ctx.fillStyle = "#000";
+
+    ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    ctx.filter =
+        getFilterString();
+
+
+    const vw =
+        video.videoWidth;
+
+    const vh =
+        video.videoHeight;
+
+
+    const scale =
+        Math.min(
+            width / vw,
+            height / vh
+        );
+
+
+    const drawWidth =
+        vw * scale;
+
+    const drawHeight =
+        vh * scale;
+
+
+    const x =
+        (width - drawWidth) / 2;
+
+    const y =
+        (height - drawHeight) / 2;
+
+
+    ctx.drawImage(
+        video,
+        x,
+        y,
+        drawWidth,
+        drawHeight
+    );
+
+
+    ctx.filter = "none";
+
+
+    /* TEXT */
+
+    if (textInput.value.trim()) {
+
+        const size =
+            Number(textSize.value) *
+            Math.max(
+                1,
+                width / 800
+            );
+
+
+        ctx.font =
+            "bold " +
+            size +
+            "px Arial";
+
+        ctx.textAlign =
+            "center";
+
+        ctx.textBaseline =
+            "middle";
+
+        ctx.fillStyle =
+            "#fff";
+
+        ctx.shadowColor =
+            "#000";
+
+        ctx.shadowBlur =
+            12;
+
+
+    
