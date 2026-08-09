@@ -1,128 +1,60 @@
-/* =====================================================
-   FLIX VIDEO EDITOR - WORKING SCRIPT
-===================================================== */
-
 const mediaInput = document.getElementById("mediaInput");
-
-const videoPreview = document.getElementById("videoPreview");
-const imagePreview = document.getElementById("imagePreview");
-const emptyPreview = document.getElementById("emptyPreview");
+const video = document.getElementById("videoPreview");
+const image = document.getElementById("imagePreview");
+const empty = document.getElementById("emptyPreview");
 
 const playBtn = document.getElementById("playBtn");
-const seekBar = document.getElementById("seekBar");
+const seek = document.getElementById("seekBar");
 const currentTime = document.getElementById("currentTime");
 const totalTime = document.getElementById("totalTime");
 
 const muteBtn = document.getElementById("muteBtn");
 const volume = document.getElementById("volume");
 
-const timelineClip =
-    document.getElementById("timelineClip");
+const clip = document.getElementById("timelineClip");
 
-const newBtn =
-    document.getElementById("newBtn");
+const textInput = document.getElementById("textInput");
+const textSize = document.getElementById("textSize");
+const textOverlay = document.getElementById("textOverlay");
 
-const exportBtn =
-    document.getElementById("exportBtn");
+const brightness = document.getElementById("brightness");
+const contrast = document.getElementById("contrast");
+const saturation = document.getElementById("saturation");
+const blur = document.getElementById("blur");
+const aspectRatio = document.getElementById("aspectRatio");
 
-const textInput =
-    document.getElementById("textInput");
+const newBtn = document.getElementById("newBtn");
+const exportBtn = document.getElementById("exportBtn");
 
-const textSize =
-    document.getElementById("textSize");
-
-const textOverlay =
-    document.getElementById("textOverlay");
-
-const brightness =
-    document.getElementById("brightness");
-
-const contrast =
-    document.getElementById("contrast");
-
-const saturation =
-    document.getElementById("saturation");
-
-const blur =
-    document.getElementById("blur");
-
-const aspectRatio =
-    document.getElementById("aspectRatio");
-
-const splitBtn =
-    document.getElementById("splitBtn");
-
-const deleteBtn =
-    document.getElementById("deleteBtn");
-
-const undoBtn =
-    document.getElementById("undoBtn");
-
-const redoBtn =
-    document.getElementById("redoBtn");
-
+const splitBtn = document.getElementById("splitBtn");
+const deleteBtn = document.getElementById("deleteBtn");
+const undoBtn = document.getElementById("undoBtn");
+const redoBtn = document.getElementById("redoBtn");
 
 let mediaURL = null;
-let currentType = null;
-
 let history = [];
-let historyIndex = -1;
+let historyPosition = -1;
 
 
-/* =====================================================
-   HELPERS
-===================================================== */
+/* =========================
+   TIME
+========================= */
 
 function formatTime(seconds) {
+    if (!isFinite(seconds)) return "00:00";
 
-    if (!isFinite(seconds)) {
-        return "00:00";
-    }
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
 
-    const minutes =
-        Math.floor(seconds / 60);
-
-    const secs =
-        Math.floor(seconds % 60);
-
-    return (
-        String(minutes).padStart(2, "0") +
+    return String(m).padStart(2, "0") +
         ":" +
-        String(secs).padStart(2, "0")
-    );
+        String(s).padStart(2, "0");
 }
 
 
-function showVideo() {
-
-    videoPreview.style.display = "block";
-    imagePreview.style.display = "none";
-    emptyPreview.style.display = "none";
-
-}
-
-
-function showImage() {
-
-    videoPreview.style.display = "none";
-    imagePreview.style.display = "block";
-    emptyPreview.style.display = "none";
-
-}
-
-
-function showEmpty() {
-
-    videoPreview.style.display = "none";
-    imagePreview.style.display = "none";
-    emptyPreview.style.display = "block";
-
-}
-
-
-/* =====================================================
-   IMPORT VIDEO / IMAGE / AUDIO
-===================================================== */
+/* =========================
+   IMPORT
+========================= */
 
 mediaInput.addEventListener("change", function () {
 
@@ -130,246 +62,158 @@ mediaInput.addEventListener("change", function () {
 
     if (!file) return;
 
-    console.log("Imported:", file.name);
-
     if (mediaURL) {
         URL.revokeObjectURL(mediaURL);
     }
 
-    mediaURL =
-        URL.createObjectURL(file);
+    mediaURL = URL.createObjectURL(file);
 
-    currentType = file.type;
-
-    /* VIDEO */
+    console.log("FLIX IMPORT:", file.name);
 
     if (file.type.startsWith("video/")) {
 
-        videoPreview.pause();
+        image.style.display = "none";
+        video.style.display = "block";
+        empty.style.display = "none";
 
-        videoPreview.src = mediaURL;
+        video.src = mediaURL;
+        video.load();
 
-        videoPreview.load();
+        clip.textContent = "🎬 " + file.name;
 
-        showVideo();
+    } else if (file.type.startsWith("image/")) {
 
-        timelineClip.textContent =
-            "🎬 " + file.name;
+        video.pause();
+        video.removeAttribute("src");
 
-        videoPreview.currentTime = 0;
+        video.style.display = "none";
+        image.style.display = "block";
+        empty.style.display = "none";
 
-        saveHistory();
+        image.src = mediaURL;
 
-        return;
-    }
+        clip.textContent = "🖼 " + file.name;
 
+    } else {
 
-    /* IMAGE */
-
-    if (file.type.startsWith("image/")) {
-
-        imagePreview.src = mediaURL;
-
-        showImage();
-
-        timelineClip.textContent =
-            "🖼 " + file.name;
-
-        saveHistory();
+        alert("Sirf video ya image select karo.");
 
         return;
     }
 
-
-    /* AUDIO */
-
-    if (file.type.startsWith("audio/")) {
-
-        videoPreview.src = mediaURL;
-
-        videoPreview.load();
-
-        showVideo();
-
-        timelineClip.textContent =
-            "🎵 " + file.name;
-
-        saveHistory();
-
-        return;
-    }
-
-
-    alert("Ye file type supported nahi hai.");
-
+    saveHistory();
 });
 
 
-/* =====================================================
-   VIDEO METADATA
-===================================================== */
+/* =========================
+   VIDEO LOADED
+========================= */
 
-videoPreview.addEventListener(
-    "loadedmetadata",
-    function () {
+video.addEventListener("loadedmetadata", function () {
 
-        totalTime.textContent =
-            formatTime(videoPreview.duration);
+    totalTime.textContent =
+        formatTime(video.duration);
 
-        currentTime.textContent =
-            "00:00";
+    currentTime.textContent = "00:00";
 
-        seekBar.value = 0;
+    seek.value = 0;
+});
 
+
+/* =========================
+   VIDEO TIME
+========================= */
+
+video.addEventListener("timeupdate", function () {
+
+    if (!video.duration) return;
+
+    seek.value =
+        (video.currentTime / video.duration) * 100;
+
+    currentTime.textContent =
+        formatTime(video.currentTime);
+
+    totalTime.textContent =
+        formatTime(video.duration);
+});
+
+
+/* =========================
+   PLAY
+========================= */
+
+playBtn.addEventListener("click", function () {
+
+    if (!video.src) {
+        alert("Pehle video import karo.");
+        return;
     }
-);
 
-
-/* =====================================================
-   VIDEO TIME UPDATE
-===================================================== */
-
-videoPreview.addEventListener(
-    "timeupdate",
-    function () {
-
-        if (!videoPreview.duration) return;
-
-        seekBar.value =
-            (
-                videoPreview.currentTime /
-                videoPreview.duration
-            ) * 100;
-
-        currentTime.textContent =
-            formatTime(
-                videoPreview.currentTime
-            );
-
-        totalTime.textContent =
-            formatTime(
-                videoPreview.duration
-            );
-
+    if (video.paused) {
+        video.play();
+    } else {
+        video.pause();
     }
-);
+});
 
 
-/* =====================================================
-   PLAY / PAUSE
-===================================================== */
-
-playBtn.addEventListener(
-    "click",
-    function () {
-
-        if (!videoPreview.src) {
-
-            alert("Pehle video import karo.");
-
-            return;
-        }
-
-        if (videoPreview.paused) {
-
-            videoPreview.play();
-
-        } else {
-
-            videoPreview.pause();
-
-        }
-
-    }
-);
+video.addEventListener("play", function () {
+    playBtn.textContent = "⏸";
+});
 
 
-videoPreview.addEventListener(
-    "play",
-    function () {
-
-        playBtn.textContent = "⏸";
-
-    }
-);
+video.addEventListener("pause", function () {
+    playBtn.textContent = "▶";
+});
 
 
-videoPreview.addEventListener(
-    "pause",
-    function () {
-
-        playBtn.textContent = "▶";
-
-    }
-);
-
-
-/* =====================================================
+/* =========================
    SEEK
-===================================================== */
+========================= */
 
-seekBar.addEventListener(
-    "input",
-    function () {
+seek.addEventListener("input", function () {
 
-        if (!videoPreview.duration) return;
+    if (!video.duration) return;
 
-        videoPreview.currentTime =
-            (
-                Number(this.value) / 100
-            ) *
-            videoPreview.duration;
-
-    }
-);
+    video.currentTime =
+        (Number(this.value) / 100) *
+        video.duration;
+});
 
 
-/* =====================================================
-   MUTE
-===================================================== */
-
-muteBtn.addEventListener(
-    "click",
-    function () {
-
-        videoPreview.muted =
-            !videoPreview.muted;
-
-        muteBtn.textContent =
-            videoPreview.muted
-                ? "🔇"
-                : "🔊";
-
-    }
-);
-
-
-/* =====================================================
+/* =========================
    VOLUME
-===================================================== */
+========================= */
 
-volume.addEventListener(
-    "input",
-    function () {
+volume.addEventListener("input", function () {
 
-        videoPreview.volume =
-            Number(this.value) / 100;
+    video.volume =
+        Number(this.value) / 100;
 
-        if (videoPreview.volume > 0) {
-
-            videoPreview.muted = false;
-
-            muteBtn.textContent = "🔊";
-
-        }
-
+    if (video.volume > 0) {
+        video.muted = false;
+        muteBtn.textContent = "🔊";
     }
-);
+});
 
 
-/* =====================================================
+/* =========================
+   MUTE
+========================= */
+
+muteBtn.addEventListener("click", function () {
+
+    video.muted = !video.muted;
+
+    muteBtn.textContent =
+        video.muted ? "🔇" : "🔊";
+});
+
+
+/* =========================
    TEXT
-===================================================== */
+========================= */
 
 function updateText() {
 
@@ -379,320 +223,214 @@ function updateText() {
     textOverlay.style.fontSize =
         textSize.value + "px";
 
-    if (textInput.value.trim() === "") {
-
-        textOverlay.style.display = "none";
-
-    } else {
-
-        textOverlay.style.display = "block";
-
-    }
-
+    textOverlay.style.display =
+        textInput.value.trim()
+            ? "block"
+            : "none";
 }
 
 
-textInput.addEventListener(
-    "input",
-    function () {
-
-        updateText();
-        saveHistory();
-
-    }
-);
+textInput.addEventListener("input", function () {
+    updateText();
+    saveHistory();
+});
 
 
-textSize.addEventListener(
-    "input",
-    function () {
-
-        updateText();
-
-    }
-);
+textSize.addEventListener("input", function () {
+    updateText();
+});
 
 
-/* =====================================================
+/* =========================
    FILTERS
-===================================================== */
+========================= */
 
 function updateFilters() {
 
-    videoPreview.style.filter =
-        "brightness(" +
-        brightness.value +
-        "%) " +
+    video.style.filter =
+        "brightness(" + brightness.value + "%) " +
+        "contrast(" + contrast.value + "%) " +
+        "saturate(" + saturation.value + "%) " +
+        "blur(" + blur.value + "px)";
 
-        "contrast(" +
-        contrast.value +
-        "%) " +
-
-        "saturate(" +
-        saturation.value +
-        "%) " +
-
-        "blur(" +
-        blur.value +
-        "px)";
-
+    image.style.filter =
+        "brightness(" + brightness.value + "%) " +
+        "contrast(" + contrast.value + "%) " +
+        "saturate(" + saturation.value + "%) " +
+        "blur(" + blur.value + "px)";
 }
 
 
-brightness.addEventListener(
-    "input",
-    updateFilters
-);
-
-contrast.addEventListener(
-    "input",
-    updateFilters
-);
-
-saturation.addEventListener(
-    "input",
-    updateFilters
-);
-
-blur.addEventListener(
-    "input",
-    updateFilters
-);
+brightness.addEventListener("input", updateFilters);
+contrast.addEventListener("input", updateFilters);
+saturation.addEventListener("input", updateFilters);
+blur.addEventListener("input", updateFilters);
 
 
-/* =====================================================
+/* =========================
    ASPECT RATIO
-===================================================== */
+========================= */
 
-aspectRatio.addEventListener(
-    "change",
-    function () {
+aspectRatio.addEventListener("change", function () {
 
-        if (this.value === "auto") {
+    const value = this.value;
 
-            videoPreview.style.aspectRatio =
-                "auto";
+    video.style.aspectRatio = value;
+    image.style.aspectRatio = value;
 
-            imagePreview.style.aspectRatio =
-                "auto";
-
-        } else {
-
-            videoPreview.style.aspectRatio =
-                this.value;
-
-            imagePreview.style.aspectRatio =
-                this.value;
-
-        }
-
+    if (value === "auto") {
+        video.style.aspectRatio = "auto";
+        image.style.aspectRatio = "auto";
     }
-);
+});
 
 
-/* =====================================================
+/* =========================
    SPLIT
-===================================================== */
+========================= */
 
-splitBtn.addEventListener(
-    "click",
-    function () {
+splitBtn.addEventListener("click", function () {
 
-        if (!videoPreview.src) {
-
-            alert("Pehle video import karo.");
-
-            return;
-        }
-
-        if (!videoPreview.duration) {
-
-            alert("Video abhi load ho raha hai.");
-
-            return;
-        }
-
-        const position =
-            videoPreview.currentTime;
-
-        const total =
-            videoPreview.duration;
-
-        const percent =
-            (position / total) * 100;
-
-        timelineClip.innerHTML =
-            "🎬 Clip 1 &nbsp; | &nbsp; ✂ Split @ " +
-            formatTime(position) +
-            " &nbsp; | &nbsp; Clip 2";
-
-        timelineClip.style.background =
-            "linear-gradient(90deg,#5148db " +
-            percent +
-            "%,#756dff " +
-            percent +
-            "%)";
-
-        saveHistory();
-
+    if (!video.src) {
+        alert("Pehle video import karo.");
+        return;
     }
-);
+
+    if (!video.duration) {
+        alert("Video load hone do.");
+        return;
+    }
+
+    const percent =
+        (video.currentTime / video.duration) * 100;
+
+    clip.style.background =
+        "linear-gradient(90deg,#5148db " +
+        percent +
+        "%,#756dff " +
+        percent +
+        "%)";
+
+    clip.textContent =
+        "🎬 Clip 1  ✂  " +
+        formatTime(video.currentTime) +
+        "  |  Clip 2";
+
+    saveHistory();
+});
 
 
-/* =====================================================
+/* =========================
    DELETE
-===================================================== */
+========================= */
 
-deleteBtn.addEventListener(
-    "click",
-    function () {
+deleteBtn.addEventListener("click", function () {
 
-        if (!mediaURL) {
-
-            alert("Delete karne ke liye media import karo.");
-
-            return;
-        }
-
-        if (
-            !confirm(
-                "Current media delete karna hai?"
-            )
-        ) {
-            return;
-        }
-
-        videoPreview.pause();
-
-        videoPreview.removeAttribute("src");
-
-        videoPreview.load();
-
-        imagePreview.removeAttribute("src");
-
-        showEmpty();
-
-        timelineClip.textContent =
-            "No media imported";
-
-        currentTime.textContent =
-            "00:00";
-
-        totalTime.textContent =
-            "00:00";
-
-        seekBar.value = 0;
-
-        if (mediaURL) {
-
-            URL.revokeObjectURL(mediaURL);
-
-            mediaURL = null;
-
-        }
-
-        mediaInput.value = "";
-
-        saveHistory();
-
+    if (!mediaURL) {
+        alert("Pehle media import karo.");
+        return;
     }
-);
+
+    video.pause();
+
+    video.removeAttribute("src");
+    video.load();
+
+    image.removeAttribute("src");
+
+    video.style.display = "none";
+    image.style.display = "none";
+    empty.style.display = "block";
+
+    clip.textContent =
+        "No media imported";
+
+    seek.value = 0;
+
+    currentTime.textContent =
+        "00:00";
+
+    totalTime.textContent =
+        "00:00";
+
+    URL.revokeObjectURL(mediaURL);
+
+    mediaURL = null;
+
+    mediaInput.value = "";
+
+    saveHistory();
+});
 
 
-/* =====================================================
-   NEW PROJECT
-===================================================== */
+/* =========================
+   NEW
+========================= */
 
-newBtn.addEventListener(
-    "click",
-    function () {
+newBtn.addEventListener("click", function () {
 
-        videoPreview.pause();
+    video.pause();
 
-        videoPreview.removeAttribute("src");
+    video.removeAttribute("src");
+    video.load();
 
-        videoPreview.load();
+    image.removeAttribute("src");
 
-        imagePreview.removeAttribute("src");
+    video.style.display = "none";
+    image.style.display = "none";
+    empty.style.display = "block";
 
-        showEmpty();
+    clip.textContent =
+        "No media imported";
 
-        timelineClip.textContent =
-            "No media imported";
+    textInput.value = "";
+    textOverlay.textContent = "";
+    textOverlay.style.display = "none";
 
-        textInput.value = "";
+    brightness.value = 100;
+    contrast.value = 100;
+    saturation.value = 100;
+    blur.value = 0;
 
-        textOverlay.textContent = "";
+    aspectRatio.value = "auto";
 
-        textOverlay.style.display =
-            "none";
+    updateFilters();
+    updateText();
 
-        seekBar.value = 0;
+    seek.value = 0;
 
-        currentTime.textContent =
-            "00:00";
+    currentTime.textContent = "00:00";
+    totalTime.textContent = "00:00";
 
-        totalTime.textContent =
-            "00:00";
-
-        brightness.value = 100;
-        contrast.value = 100;
-        saturation.value = 100;
-        blur.value = 0;
-
-        updateFilters();
-
-        aspectRatio.value = "auto";
-
-        videoPreview.style.aspectRatio =
-            "auto";
-
-        imagePreview.style.aspectRatio =
-            "auto";
-
-        if (mediaURL) {
-
-            URL.revokeObjectURL(mediaURL);
-
-            mediaURL = null;
-
-        }
-
-        mediaInput.value = "";
-
-        history = [];
-        historyIndex = -1;
-
-        saveHistory();
-
+    if (mediaURL) {
+        URL.revokeObjectURL(mediaURL);
+        mediaURL = null;
     }
-);
+
+    mediaInput.value = "";
+
+    history = [];
+    historyPosition = -1;
+
+    saveHistory();
+});
 
 
-/* =====================================================
-   UNDO / REDO
-===================================================== */
+/* =========================
+   HISTORY
+========================= */
 
 function getState() {
 
     return {
-
         text: textInput.value,
-
         textSize: textSize.value,
-
         brightness: brightness.value,
-
         contrast: contrast.value,
-
         saturation: saturation.value,
-
         blur: blur.value,
-
-        aspectRatio: aspectRatio.value
-
+        aspect: aspectRatio.value
     };
-
 }
 
 
@@ -701,24 +439,18 @@ function saveHistory() {
     const state =
         JSON.stringify(getState());
 
-    if (
-        historyIndex >= 0 &&
-        history[historyIndex] === state
-    ) {
-        return;
-    }
-
     history =
-        history.slice(
-            0,
-            historyIndex + 1
-        );
+        history.slice(0, historyPosition + 1);
 
     history.push(state);
 
-    historyIndex =
+    historyPosition =
         history.length - 1;
 
+    if (history.length > 30) {
+        history.shift();
+        historyPosition--;
+    }
 }
 
 
@@ -727,337 +459,175 @@ function restoreState(state) {
     const data =
         JSON.parse(state);
 
-    textInput.value =
-        data.text;
-
-    textSize.value =
-        data.textSize;
-
-    brightness.value =
-        data.brightness;
-
-    contrast.value =
-        data.contrast;
-
-    saturation.value =
-        data.saturation;
-
-    blur.value =
-        data.blur;
-
-    aspectRatio.value =
-        data.aspectRatio;
+    textInput.value = data.text;
+    textSize.value = data.textSize;
+    brightness.value = data.brightness;
+    contrast.value = data.contrast;
+    saturation.value = data.saturation;
+    blur.value = data.blur;
+    aspectRatio.value = data.aspect;
 
     updateText();
-
     updateFilters();
 
-    if (
-        aspectRatio.value === "auto"
-    ) {
-
-        videoPreview.style.aspectRatio =
-            "auto";
-
-        imagePreview.style.aspectRatio =
-            "auto";
-
-    } else {
-
-        videoPreview.style.aspectRatio =
-            aspectRatio.value;
-
-        imagePreview.style.aspectRatio =
-            aspectRatio.value;
-
-    }
-
+    video.style.aspectRatio = data.aspect;
+    image.style.aspectRatio = data.aspect;
 }
 
 
-undoBtn.addEventListener(
-    "click",
-    function () {
+undoBtn.addEventListener("click", function () {
 
-        if (historyIndex <= 0) {
+    if (historyPosition <= 0) return;
 
-            return;
+    historyPosition--;
 
-        }
-
-        historyIndex--;
-
-        restoreState(
-            history[historyIndex]
-        );
-
-    }
-);
+    restoreState(
+        history[historyPosition]
+    );
+});
 
 
-redoBtn.addEventListener(
-    "click",
-    function () {
+redoBtn.addEventListener("click", function () {
 
-        if (
-            historyIndex >=
-            history.length - 1
-        ) {
+    if (
+        historyPosition >=
+        history.length - 1
+    ) return;
 
-            return;
+    historyPosition++;
 
-        }
-
-        historyIndex++;
-
-        restoreState(
-            history[historyIndex]
-        );
-
-    }
-);
+    restoreState(
+        history[historyPosition]
+    );
+});
 
 
-/* =====================================================
+/* =========================
    EXPORT
-===================================================== */
+========================= */
 
-exportBtn.addEventListener(
-    "click",
-    async function () {
+exportBtn.addEventListener("click", async function () {
 
-        if (!videoPreview.src) {
+    if (!video.src) {
+        alert("Pehle video import karo.");
+        return;
+    }
 
-            alert(
-                "Pehle ek video import karo."
-            );
+    if (!video.captureStream) {
+        alert(
+            "Is browser mein video export supported nahi hai."
+        );
+        return;
+    }
 
-            return;
-        }
+    try {
 
-        if (
-            !videoPreview.captureStream ||
-            !window.MediaRecorder
-        ) {
+        const stream =
+            video.captureStream();
 
-            alert(
-                "Is browser mein direct video export supported nahi hai."
-            );
+        const chunks = [];
 
-            return;
-        }
+        const recorder =
+            new MediaRecorder(stream);
 
-        try {
+        recorder.ondataavailable =
+            function (event) {
 
-            const oldTime =
-                videoPreview.currentTime;
+                if (event.data.size) {
+                    chunks.push(event.data);
+                }
+            };
 
-            const stream =
-                videoPreview.captureStream();
+        recorder.onstop =
+            function () {
 
-            const chunks = [];
+                const blob =
+                    new Blob(chunks, {
+                        type: "video/webm"
+                    });
 
-            const recorder =
-                new MediaRecorder(
-                    stream,
-                    {
-                        mimeType:
-                            "video/webm"
-                    }
-                );
+                const url =
+                    URL.createObjectURL(blob);
 
+                const link =
+                    document.createElement("a");
 
-            recorder.ondataavailable =
-                function (event) {
+                link.href = url;
+                link.download =
+                    "flix-video.webm";
 
-                    if (
-                        event.data &&
-                        event.data.size > 0
-                    ) {
+                document.body.appendChild(link);
 
-                        chunks.push(
-                            event.data
-                        );
+                link.click();
 
-                    }
+                link.remove();
 
-                };
+                URL.revokeObjectURL(url);
+            };
 
+        video.currentTime = 0;
 
-            recorder.onstop =
-                function () {
+        recorder.start();
 
-                    const blob =
-                        new Blob(
-                            chunks,
-                            {
-                                type:
-                                    "video/webm"
-                            }
-                        );
+        await video.play();
 
-                    const url =
-                        URL.createObjectURL(
-                            blob
-                        );
+        video.onended = function () {
 
-                    const a =
-                        document.createElement(
-                            "a"
-                        );
+            if (recorder.state !== "inactive") {
+                recorder.stop();
+            }
 
-                    a.href = url;
+        };
 
-                    a.download =
-                        "flix-video.webm";
+    } catch (error) {
 
-                    document.body.appendChild(a);
+        console.error(error);
 
-                    a.click();
-
-                    a.remove();
-
-                    URL.revokeObjectURL(url);
-
-                    videoPreview.currentTime =
-                        oldTime;
-
-                    playBtn.textContent = "▶";
-
-                };
-
-
-            videoPreview.currentTime = 0;
-
-            recorder.start();
-
-            await videoPreview.play();
-
-
-            videoPreview.onended =
-                function () {
-
-                    if (
-                        recorder.state !==
-                        "inactive"
-                    ) {
-
-                        recorder.stop();
-
-                    }
-
-                };
-
-
-        } catch (error) {
-
-            console.error(error);
-
-            alert(
-                "Export mein problem aayi. Browser console check karo."
-            );
-
-        }
+        alert("Export nahi ho paya.");
 
     }
-);
+});
 
 
-/* =====================================================
-   SIDEBAR TOOLS
-===================================================== */
+/* =========================
+   SIDEBAR
+========================= */
 
 document
     .querySelectorAll(".tool")
     .forEach(function (tool) {
 
-        tool.addEventListener(
-            "click",
-            function () {
+        tool.addEventListener("click", function () {
 
-                document
-                    .querySelectorAll(".tool")
-                    .forEach(
-                        function (item) {
+            document
+                .querySelectorAll(".tool")
+                .forEach(function (x) {
+                    x.classList.remove("active");
+                });
 
-                            item.classList.remove(
-                                "active"
-                            );
+            this.classList.add("active");
 
-                        }
-                    );
+            const name =
+                this.dataset.tool;
 
-                this.classList.add("active");
-
-                const selectedTool =
-                    this.dataset.tool;
-
-                console.log(
-                    "Selected tool:",
-                    selectedTool
-                );
-
-                if (
-                    selectedTool ===
-                    "text"
-                ) {
-
-                    textInput.focus();
-
-                }
-
-                if (
-                    selectedTool ===
-                    "filters"
-                ) {
-
-                    brightness.focus();
-
-                }
-
-                if (
-                    selectedTool ===
-                    "thumbnail"
-                ) {
-
-                    alert(
-                        "Thumbnail Maker selected. Media import karke use karo."
-                    );
-
-                }
-
+            if (name === "text") {
+                textInput.focus();
             }
-        );
+
+            if (name === "filters") {
+                brightness.focus();
+            }
+
+        });
 
     });
 
 
-/* =====================================================
-   VIDEO ERROR
-===================================================== */
+/* =========================
+   START
+========================= */
 
-videoPreview.addEventListener(
-    "error",
-    function () {
-
-        console.error(
-            "Video error:",
-            videoPreview.error
-        );
-
-        alert(
-            "Video browser mein play nahi ho raha. MP4 (H.264) video try karo."
-        );
-
-    }
-);
-
-
-/* =====================================================
-   INITIAL SETTINGS
-===================================================== */
-
-videoPreview.volume = 1;
+video.volume = 1;
 
 updateFilters();
 
@@ -1066,5 +636,5 @@ updateText();
 saveHistory();
 
 console.log(
-    "FLIX VIDEO EDITOR SCRIPT LOADED SUCCESSFULLY"
-);
+    "✅ FLIX VIDEO EDITOR READY"
+);a
